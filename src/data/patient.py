@@ -86,29 +86,22 @@ def update(connection: duckdb.DuckDBPyConnection, patient: Patient) -> None:
     """
     Updates an existing patient's data in the 'patients' table.
     """
-    try:
-        log.info(f"APP-LOGIC: Attempting to update patient '{patient.name}'.")
-        patient_dict = patient.model_dump()
-        patient_df = pd.DataFrame([patient_dict])
+    log.info(f"APP-LOGIC: Attempting to update patient '{patient.name}'.")
+    patient_df = pd.DataFrame([patient.model_dump()])
 
-        connection.register("patient_df", patient_df)
+    connection.register("patient_df", patient_df)
 
-        sql = """
-        UPDATE patients 
-        SET name = patient_df.name, 
-            address = patient_df.address, 
-            birthdate = patient_df.birthdate, 
-            is_child = patient_df.is_child, 
-            cpf_cnpj = patient_df.cpf_cnpj, 
-            school = patient_df.school, 
-            tutor_cpf_cnpj = patient_df.tutor_cpf_cnpj
-        FROM patient_df
-        WHERE patients.id = patient_df.id;
-        """
-        connection.execute(sql)
-        log.info(f"APP-LOGIC: Successfully updated patient with ID {patient.id}.")
-    except Exception:
-        log.error(
-            f"APP-LOGIC: Failed to update patient '{patient.name}'.", exc_info=True
-        )
-        raise
+    sql = """
+    UPDATE patients 
+    SET name = patient_df.name, 
+        address = patient_df.address, 
+        birthdate = patient_df.birthdate, 
+        is_child = patient_df.is_child, 
+        cpf_cnpj = patient_df.cpf_cnpj, 
+        school = patient_df.school, 
+        tutor_cpf_cnpj = patient_df.tutor_cpf_cnpj
+    FROM patient_df
+    WHERE patients.id = patient_df.id;
+    """
+    connection.execute(sql)
+    log.info(f"APP-LOGIC: Successfully updated patient with ID {patient.id}.")
