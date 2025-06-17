@@ -13,6 +13,7 @@ from data.database import (
     create_appointments_table,
     create_patients_table,
     edit_appointment_data,
+    edit_patient_data,
     get_appointment_by_id,
     get_patient_by_id,
 )
@@ -154,28 +155,22 @@ def test_add_and_get_patient_with_pydantic(
 
 
 def test_edit_patient(
-    db_connection: duckdb.DuckDBPyConnection, logger: logging.Logger
+    db_connection: duckdb.DuckDBPyConnection,
+    logger: logging.Logger,
+    patient_adult_model: Patient,
 ) -> None:
     """
     Tests that a patient can be edited successfully.
     """
     logger.info("TEST-RUN: test_edit_patient")
 
-    # Create and add a new patient
-    original_patient = Patient(
-        name="Jane Smith",
-        address="456 Elm St, City, State",
-        is_child=False,
-        birthdate=date(1990, 1, 1),
-        cpf_cnpj="123.323.232-22",
+    patient_id = add_patient(db_connection, patient_adult_model)
+
+    updated_patient = patient_adult_model.model_copy(
+        update={"address": "789 Updated St, Updated City, Updated State"}
     )
-    patient_id = add_patient(db_connection, original_patient)
+    edit_patient_data(db_connection, updated_patient)
 
-    # Edit the patient's details
-    updated_patient = original_patient.model_copy(update={"address": "789 Oak St"})
-    updated_patient.id = patient_id  # Ensure the ID remains the same
-
-    # Update the patient in the database
     db_connection.execute(
         """
         UPDATE patients 
@@ -185,7 +180,6 @@ def test_edit_patient(
         (updated_patient.address, updated_patient.id),
     )
 
-    # Retrieve the updated patient
     retrieved_patient = get_patient_by_id(db_connection, patient_id)
 
     assert retrieved_patient.address == updated_patient.address, (
@@ -198,7 +192,6 @@ def test_edit_patient(
 def test_add_appointment(
     db_connection: duckdb.DuckDBPyConnection,
     logger: logging.Logger,
-    patient_child_model: Patient,
     appointment_attended: Appointment,
 ) -> None:
     """
