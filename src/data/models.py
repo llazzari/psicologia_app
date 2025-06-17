@@ -2,7 +2,7 @@ from datetime import date
 from typing import Optional
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class Patient(BaseModel):
@@ -30,5 +30,30 @@ class Patient(BaseModel):
         Pydantic configuration options.
         'from_attributes = True' allows the model to be created from ORM objects.
         """
+
+        from_attributes = True
+
+
+class Appointment(BaseModel):
+    """
+    Pydantic model for an individual appointment/session.
+    """
+
+    id: UUID = Field(default_factory=uuid4)
+    patient_id: UUID
+    appointment_date: date
+    status: str  # Validated to be 'attended', 'cancelled', or 'no-show'
+
+    @field_validator("status")
+    @classmethod
+    def check_status_value(cls, v: str) -> str:
+        """Ensures status has a valid value."""
+        allowed_statuses = {"attended", "cancelled", "no-show"}
+        if v not in allowed_statuses:
+            raise ValueError(f"Status must be one of {allowed_statuses}")
+        return v
+
+    class ConfigDict:
+        """Pydantic configuration options."""
 
         from_attributes = True
