@@ -100,31 +100,23 @@ def update(connection: duckdb.DuckDBPyConnection, invoice: MonthlyInvoice) -> No
     """
     Updates an existing monthly invoice's data in the 'monthly_invoices' table.
     """
-    try:
-        log.info(
-            f"APP-LOGIC: Attempting to update monthly invoice with ID {invoice.id}."
-        )
-        invoice_df = pd.DataFrame([invoice.model_dump()])
-        connection.register("invoice_df", invoice_df)
+    log.info(f"APP-LOGIC: Attempting to update monthly invoice with ID {invoice.id}.")
+    invoice_df = pd.DataFrame([invoice.model_dump()])
 
-        sql = """
-        UPDATE monthly_invoices 
-        SET patient_id = invoice_df.patient_id, 
-            invoice_month = invoice_df.invoice_month, 
-            session_price = invoice_df.session_price, 
-            sessions_completed = invoice_df.sessions_completed, 
-            payment_status = invoice_df.payment_status, 
-            payment_date = invoice_df.payment_date
-        FROM invoice_df
-        WHERE monthly_invoices.id = invoice_df.id;
-        """
-        connection.execute(sql)
-        log.info(
-            f"APP-LOGIC: Successfully updated monthly invoice with ID {invoice.id}."
-        )
-    except Exception:
-        log.error(
-            f"APP-LOGIC: Failed to update monthly invoice with ID {invoice.id}.",
-            exc_info=True,
-        )
-        raise
+    connection.register("invoice_df", invoice_df)
+
+    sql = """
+    UPDATE monthly_invoices 
+    SET patient_id = invoice_df.patient_id, 
+        invoice_month = invoice_df.invoice_month, 
+        session_price = invoice_df.session_price, 
+        sessions_completed = invoice_df.sessions_completed, 
+        payment_status = invoice_df.payment_status, 
+        payment_date = invoice_df.payment_date
+    FROM invoice_df
+    WHERE monthly_invoices.id = invoice_df.id;
+    """
+
+    connection.execute(sql)
+
+    log.info(f"APP-LOGIC: Successfully updated monthly invoice with ID {invoice.id}.")
