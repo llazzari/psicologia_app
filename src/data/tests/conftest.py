@@ -6,11 +6,8 @@ from typing import Iterator
 import duckdb
 import pytest
 
-from data.appointment import create_appointments_table
-from data.database import connect_to_db
+from data import database
 from data.models import Patient
-from data.monthly_invoice import create_monthly_invoices_table
-from data.patient import create_patients_table
 
 
 @pytest.fixture(scope="session")
@@ -39,10 +36,8 @@ def db_connection(logger: logging.Logger) -> Iterator[duckdb.DuckDBPyConnection]
     logger.info(f"FIXTURE-SETUP: Preparing database file: {db_file}")
     if os.path.exists(db_file):
         os.remove(db_file)
-    connection = connect_to_db(db_file)
-    create_patients_table(connection)
-    create_appointments_table(connection)
-    create_monthly_invoices_table(connection)
+    connection = database.connect(db_file)
+    database.initialize(connection)
     yield connection
     connection.close()
     if os.path.exists(db_file):
