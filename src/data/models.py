@@ -57,3 +57,31 @@ class Appointment(BaseModel):
         """Pydantic configuration options."""
 
         from_attributes = True
+
+
+class MonthlyInvoice(BaseModel):
+    """
+    Pydantic model for a patient's monthly invoice.
+    """
+
+    id: UUID = Field(default_factory=uuid4)
+    patient_id: UUID
+    invoice_month: str  # Format MMM, e.g. "Jan", "Feb", etc.
+    session_price: int  # in cents
+    sessions_completed: int
+    payment_status: str  # Validated to be 'pending', 'paid', 'overdue', 'waived'
+    payment_date: Optional[date] = None
+
+    @field_validator("payment_status")
+    @classmethod
+    def check_payment_status(cls, v: str) -> str:
+        """Ensures payment_status has a valid value."""
+        allowed_statuses = {"pending", "paid", "overdue", "waived"}
+        if v not in allowed_statuses:
+            raise ValueError(f"Payment status must be one of {allowed_statuses}")
+        return v
+
+    class ConfigDict:
+        """Pydantic configuration options."""
+
+        from_attributes = True
