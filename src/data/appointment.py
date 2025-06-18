@@ -94,28 +94,21 @@ def update(connection: duckdb.DuckDBPyConnection, appointment: Appointment) -> N
     """
     Updates an existing appointment's data in the 'appointments' table.
     """
-    try:
-        log.info(
-            f"APP-LOGIC: Attempting to update appointment with ID {appointment.id}."
-        )
-        appointment_df = pd.DataFrame([appointment.model_dump()])
-        connection.register("appointment_df", appointment_df)
+    log.info(f"APP-LOGIC: Attempting to update appointment with ID {appointment.id}.")
 
-        sql = """
-        UPDATE appointments 
-        SET patient_id = appointment_df.patient_id, 
-            appointment_date = appointment_df.appointment_date, 
-            status = appointment_df.status
-        FROM appointment_df
-        WHERE appointments.id = appointment_df.id;
-        """
-        connection.execute(sql)
-        log.info(
-            f"APP-LOGIC: Successfully updated appointment with ID {appointment.id}."
-        )
-    except Exception:
-        log.error(
-            f"APP-LOGIC: Failed to update appointment with ID {appointment.id}.",
-            exc_info=True,
-        )
-        raise
+    appointment_df = pd.DataFrame([appointment.model_dump()])
+
+    connection.register("appointment_df", appointment_df)
+
+    sql = """
+    UPDATE appointments 
+    SET patient_id = appointment_df.patient_id, 
+        appointment_date = appointment_df.appointment_date, 
+        status = appointment_df.status
+    FROM appointment_df
+    WHERE appointments.id = appointment_df.id;
+    """
+
+    connection.execute(sql)
+
+    log.info(f"APP-LOGIC: Successfully updated appointment with ID {appointment.id}.")
