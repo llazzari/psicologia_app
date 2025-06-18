@@ -1,5 +1,4 @@
 from datetime import datetime, time, timedelta
-from typing import List
 
 
 def generate_time_slots(
@@ -8,7 +7,7 @@ def generate_time_slots(
     end_hour: int,
     end_minutes: int,
     interval_minutes: int,
-) -> List[time]:
+) -> list[time]:
     """
     Generates a list of time slots for a day.
 
@@ -31,7 +30,7 @@ def generate_time_slots(
     return slots
 
 
-def get_week_days(base_date: datetime.date) -> List[datetime.date]:  # type: ignore
+def get_week_days(base_date: datetime.date) -> list[datetime.date]:  # type: ignore
     """
     Gets the dates for the current week (Monday to Friday) based on a given date.
 
