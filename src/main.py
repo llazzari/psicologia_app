@@ -1,5 +1,7 @@
 import streamlit as st
 
+from data import database
+
 
 def main():
     """Main function to run the Streamlit application."""
@@ -16,6 +18,9 @@ def main():
 
     Comece selecionando uma opção no menu ao lado.
     """)
+
+    with database.connect(database.DB_PATH) as connection:
+        database.initialize(connection)
 
 
 if __name__ == "__main__":
