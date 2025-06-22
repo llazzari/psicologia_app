@@ -58,7 +58,6 @@ class Appointment(BaseModel):
     @field_validator("weekday", mode="before")
     @classmethod
     def set_weekday(cls, v: str | None, info: ValidationInfo) -> Optional[str]:
-        # Otherwise, derive from appointment_date
         dt = info.data.get("appointment_date")
         if not isinstance(dt, date):
             return None
