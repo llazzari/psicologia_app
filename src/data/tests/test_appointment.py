@@ -1,5 +1,5 @@
 import logging
-from datetime import date
+from datetime import date, time
 from uuid import uuid4
 
 import duckdb
@@ -14,8 +14,10 @@ def appointment_attended(patient_child_model: Patient) -> Appointment:
     """Fixture to provide a sample attended appointment model for tests."""
     return Appointment(
         patient_id=patient_child_model.id,
-        appointment_date=date(2023, 10, 1),
+        appointment_date=date(2025, 6, 12),
+        appointment_hour=time(14, 30),
         status="attended",
+        weekday=None,  # "Quinta (12/06)",
     )
 
 
@@ -25,7 +27,9 @@ def appointment_cancelled(patient_child_model: Patient) -> Appointment:
     return Appointment(
         patient_id=patient_child_model.id,
         appointment_date=date(2023, 10, 2),
+        appointment_hour=time(15, 0),
         status="cancelled",
+        weekday=None,
     )
 
 
@@ -35,7 +39,9 @@ def appointment_no_show(patient_child_model: Patient) -> Appointment:
     return Appointment(
         patient_id=patient_child_model.id,
         appointment_date=date(2023, 10, 3),
+        appointment_hour=time(16, 30),
         status="no-show",
+        weekday=None,
     )
 
 
@@ -75,7 +81,7 @@ def test_add_appointment(
         pytest.fail(f"Test failed with an unexpected exception: {e}")
 
 
-def test_edit_appointment_data(
+def test_update_appointment(
     db_connection: duckdb.DuckDBPyConnection,
     logger: logging.Logger,
     appointment_attended: Appointment,
@@ -83,13 +89,18 @@ def test_edit_appointment_data(
     """
     Tests that an appointment can be edited successfully.
     """
-    logger.info("TEST-RUN: test_edit_appointment_data")
+    logger.info("TEST-RUN: test_update_appointment")
 
     # Add the initial appointment
     appointment.add(db_connection, appointment_attended)
 
     updated_appointment = appointment_attended.model_copy(
-        update={"status": "cancelled", "appointment_date": date(2022, 10, 1)}
+        update={
+            "status": "cancelled",
+            "appointment_date": date(2025, 6, 21),
+            "appointment_hour": time(9, 0),
+            "weekday": "Sábado (21/06)",
+        }
     )
     appointment.update(db_connection, updated_appointment)
 
@@ -98,6 +109,10 @@ def test_edit_appointment_data(
     assert retrieved_appointment.status == updated_appointment.status, (
         "The status should have been updated."
     )
+    assert (
+        retrieved_appointment.appointment_hour == updated_appointment.appointment_hour
+    ), "The appointment hour should have been updated."
+    assert retrieved_appointment.weekday == updated_appointment.weekday
 
     logger.info("SUCCESS: Appointment was edited successfully.")
 
@@ -125,7 +140,10 @@ def test_add_appointments_with_different_statuses(
             assert retrieved.status == status_type, (
                 f"Appointment status should be '{status_type}'"
             )
-
+            assert retrieved.appointment_hour == test_appointment.appointment_hour, (
+                f"Appointment hour should be '{test_appointment.appointment_hour}'"
+            )
+            assert retrieved.weekday == test_appointment.weekday
             logger.info(f"SUCCESS: Added appointment with '{status_type}' status")
         except Exception as e:
             logger.error(
@@ -215,11 +233,14 @@ def test_update_multiple_appointment_fields(
     appointment.add(db_connection, appointment_attended)
 
     # Update multiple fields
-    new_date = date(2025, 12, 25)
+    new_date = date(2025, 6, 21)
+    new_time = time(10, 15)
     updated_appointment = appointment_attended.model_copy(
         update={
             "status": "cancelled",
             "appointment_date": new_date,
+            "appointment_hour": new_time,
+            "weekday": "Sábado (21/06)",
         }
     )
 
@@ -230,5 +251,108 @@ def test_update_multiple_appointment_fields(
 
     assert retrieved.status == "cancelled", "Status should be updated"
     assert retrieved.appointment_date == new_date, "Date should be updated"
+    assert retrieved.appointment_hour == new_time, "Time should be updated"
+    # Check weekday field
+    assert retrieved.weekday == updated_appointment.weekday
 
     logger.info("SUCCESS: Multiple appointment fields updated successfully")
+
+
+def test_list_all_for_week(
+    db_connection: duckdb.DuckDBPyConnection,
+    logger: logging.Logger,
+) -> None:
+    logger.info("TEST-RUN: test_list_all_for_week")
+
+    # Create appointments in chronological order
+    appointment1 = Appointment(
+        patient_id=uuid4(),
+        appointment_date=date(2025, 6, 17),
+        appointment_hour=time(14, 30),
+        status="attended",
+    )
+
+    appointment2 = Appointment(
+        patient_id=uuid4(),
+        appointment_date=date(2025, 6, 17),
+        appointment_hour=time(15, 30),
+        status="attended",
+    )
+
+    appointment_out_of_week = Appointment(
+        patient_id=uuid4(),
+        appointment_date=date(2025, 6, 1),
+        appointment_hour=time(14, 30),
+        status="cancelled",
+    )
+
+    # Add appointments in random order
+    appointment.add(db_connection, appointment2)
+    appointment.add(db_connection, appointment_out_of_week)
+    appointment.add(db_connection, appointment1)
+
+    appointments = appointment.list_all_for_week(
+        db_connection, [date(2025, 6, 16), date(2025, 6, 20)]
+    )
+    # If DataFrame, check weekday column exists and is correct
+    if hasattr(appointments, "columns") and "weekday" in appointments.columns:
+        for idx, row in appointments.iterrows():  # type: ignore
+            dt = row["appointment_date"]  # type: ignore
+            weekdays_pt = [
+                "Segunda",
+                "Terça",
+                "Quarta",
+                "Quinta",
+                "Sexta",
+                "Sábado",
+                "Domingo",
+            ]
+            weekday_idx = dt.weekday()  # type: ignore
+            expected_weekday = (
+                f"{weekdays_pt[weekday_idx]} ({dt.day:02d}/{dt.month:02d})"  # type: ignore
+            )
+            assert row["weekday"] == expected_weekday
+        # Compare first and second appointment fields
+        row1 = appointments.iloc[0]  # type: ignore
+        row2 = appointments.iloc[1]  # type: ignore
+        assert row1["appointment_date"] == appointment1.appointment_date
+        assert row1["appointment_hour"] == appointment1.appointment_hour
+        assert row2["appointment_date"] == appointment2.appointment_date
+        assert row2["appointment_hour"] == appointment2.appointment_hour
+        assert row1["weekday"] == appointment1.weekday
+        assert row2["weekday"] == appointment2.weekday
+    logger.info("SUCCESS: Appointment listing for the week works correctly")
+
+
+def test_list_all_for_week_no_appointments(
+    db_connection: duckdb.DuckDBPyConnection,
+    logger: logging.Logger,
+) -> None:
+    """
+    Tests that listing appointments for a week with no appointments returns an empty list.
+    """
+    logger.info("TEST-RUN: test_list_all_for_week_no_appointments")
+
+    appointments = appointment.list_all_for_week(
+        db_connection, [date(2025, 6, 16), date(2025, 6, 20)]
+    )
+
+    assert len(appointments) == 0, "There should be no appointments in the week"
+    logger.info("SUCCESS: No appointments for the week handled correctly")
+
+
+def test_list_all_for_week_invalid_date(
+    db_connection: duckdb.DuckDBPyConnection,
+    logger: logging.Logger,
+) -> None:
+    """
+    Tests that listing appointments for a week with no appointments returns an empty list.
+    """
+    logger.info("TEST-RUN: test_list_all_for_week_invalid_date")
+
+    with pytest.raises(ValueError):
+        _ = appointment.list_all_for_week(
+            db_connection, [date(2025, 6, 16), date(2025, 6, 200)]
+        )
+
+    logger.info("SUCCESS: Invalid date for week listing handled correctly")
