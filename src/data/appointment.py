@@ -1,3 +1,4 @@
+import datetime
 import logging
 from uuid import UUID
 
@@ -17,8 +18,10 @@ def create_appointments_table(connection: duckdb.DuckDBPyConnection) -> None:
         CREATE TABLE IF NOT EXISTS appointments (
             id UUID PRIMARY KEY, 
             patient_id UUID NOT NULL, 
-            appointment_date DATE NOT NULL, 
-            status VARCHAR CHECK (status IN ('attended', 'cancelled', 'no-show')) NOT NULL
+            appointment_date DATE NOT NULL,
+            appointment_hour TIME NOT NULL,
+            status VARCHAR CHECK (status IN ('attended', 'cancelled', 'no-show')) NOT NULL,
+            weekday VARCHAR DEFAULT NULL
         );
         """
         connection.execute(sql_command)
@@ -42,7 +45,7 @@ def add(connection: duckdb.DuckDBPyConnection, appointment: Appointment) -> UUID
 
         sql = """
         INSERT INTO appointments 
-        SELECT id, patient_id, appointment_date, status FROM appointment_df
+        SELECT id, patient_id, appointment_date, appointment_hour, status, weekday FROM appointment_df
         """
         connection.execute(sql)
         log.info(
@@ -103,12 +106,64 @@ def update(connection: duckdb.DuckDBPyConnection, appointment: Appointment) -> N
     sql = """
     UPDATE appointments 
     SET patient_id = appointment_df.patient_id, 
-        appointment_date = appointment_df.appointment_date, 
-        status = appointment_df.status
+        appointment_date = appointment_df.appointment_date,
+        appointment_hour = appointment_df.appointment_hour,
+        status = appointment_df.status,
+        weekday = appointment_df.weekday
     FROM appointment_df
     WHERE appointments.id = appointment_df.id;
     """
 
     connection.execute(sql)
+    # Ensure weekday is set
+    if not appointment.weekday:
+        appointment = appointment.model_copy(update={"weekday": None})
 
     log.info(f"APP-LOGIC: Successfully updated appointment with ID {appointment.id}.")
+
+
+def list_all_for_week(
+    connection: duckdb.DuckDBPyConnection, week: list[datetime.date]
+) -> pd.DataFrame:
+    """
+    Lists all appointments for the given week in a format ready for the schedule page.
+    Returns a DataFrame with:
+    - Time slots as index
+    - Days of the week as columns (e.g. 'Segunda (20/06)')
+    - Patient names in the cells
+    """
+    try:
+        log.info("APP-LOGIC: Attempting to list appointments with patient names.")
+        sql = """
+        SELECT 
+            a.weekday as day_column,
+            a.appointment_hour,
+            p.name as patient_name
+        FROM appointments a
+        JOIN patients p ON a.patient_id = p.id
+        WHERE a.appointment_date BETWEEN ? AND ?
+        """
+        cursor = connection.execute(sql, (min(week), max(week)))
+        df: pd.DataFrame = cursor.df()
+        if df.empty:
+            log.warning("No appointments found.")
+            # Create an empty DataFrame with the correct structure
+            days = [
+                f"{['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'][d.weekday()]} ({d.day:02d}/{d.month:02d})"
+                for d in week
+            ]
+            df = pd.DataFrame(columns=days)
+        else:
+            # Pivot the DataFrame so that each weekday is a column
+            df = df.pivot(
+                index="appointment_hour", columns="day_column", values="patient_name"
+            )
+        df.index.name = "Horário"
+        log.info("Successfully retrieved appointments schedule for the week.")
+        return df
+    except Exception:
+        log.error(
+            "Failed to retrieve appointments.",
+            exc_info=True,
+        )
+        raise
