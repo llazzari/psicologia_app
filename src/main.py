@@ -5,6 +5,10 @@ from data import database
 
 def main():
     """Main function to run the Streamlit application."""
+
+    with database.connect(database.DB_PATH) as connection:
+        database.initialize(connection)
+
     st.title("Bem-vindo(a) ao Sistema de Gerenciamento")
 
     st.markdown("""
@@ -18,9 +22,6 @@ def main():
 
     Comece selecionando uma opção no menu ao lado.
     """)
-
-    with database.connect(database.DB_PATH) as connection:
-        database.initialize(connection)
 
 
 if __name__ == "__main__":
