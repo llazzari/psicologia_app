@@ -170,14 +170,10 @@ def list_all_for_week(
 
         if df.empty:
             log.warning("No appointments found.")
-            # Create an empty DataFrame with the correct structure
-
-            df = pd.DataFrame(columns=days)
-        else:
-            # Pivot the DataFrame so that each weekday is a column
-            df = df.pivot(
-                index="appointment_hour", columns="day_column", values="patient_name"
-            ).reindex(index=time_slots, columns=days, fill_value="")
+        # Pivot the DataFrame so that each weekday is a column
+        df = df.pivot(
+            index="appointment_hour", columns="day_column", values="patient_name"
+        ).reindex(index=time_slots, columns=days, fill_value="")
         df.index.name = "Horário"
         df.index = pd.to_datetime(df.index.astype(str)).strftime("%H:%M")  # type: ignore
         df.fillna("", inplace=True)  # type: ignore
