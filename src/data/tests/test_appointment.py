@@ -258,6 +258,25 @@ def test_update_multiple_appointment_fields(
     logger.info("SUCCESS: Multiple appointment fields updated successfully")
 
 
+def test_get_all_for_a_week_with_no_appointments(
+    db_connection: duckdb.DuckDBPyConnection, logger: logging.Logger
+) -> None:
+    """Tests that retrieving appointments for a week with no appointments returns an empty DataFrame."""
+    logger.info("TEST-RUN: test_get_all_for_a_week_with_no_appointments")
+
+    # Attempt to retrieve appointments for a week with no appointments
+    appointments = appointment.get_all_for_week(
+        db_connection, [date(2025, 6, 16), date(2025, 6, 20)]
+    )
+
+    # Check if the result is an empty DataFrame
+    assert hasattr(appointments, "empty") and appointments.empty, (
+        "Expected an empty DataFrame when there are no appointments for the week."
+    )
+
+    logger.info("SUCCESS: No appointments for the week returns an empty DataFrame")
+
+
 def test_list_all_for_week(
     db_connection: duckdb.DuckDBPyConnection,
     logger: logging.Logger,
@@ -324,29 +343,12 @@ def test_list_all_for_week(
     logger.info("SUCCESS: Appointment listing for the week works correctly")
 
 
-def test_list_all_for_week_no_appointments(
-    db_connection: duckdb.DuckDBPyConnection,
-    logger: logging.Logger,
-) -> None:
-    """
-    Tests that listing appointments for a week with no appointments returns an empty list.
-    """
-    logger.info("TEST-RUN: test_list_all_for_week_no_appointments")
-
-    appointments = appointment.list_all_for_week(
-        db_connection, [date(2025, 6, 16), date(2025, 6, 20)]
-    )
-
-    assert len(appointments) == 0, "There should be no appointments in the week"
-    logger.info("SUCCESS: No appointments for the week handled correctly")
-
-
 def test_list_all_for_week_invalid_date(
     db_connection: duckdb.DuckDBPyConnection,
     logger: logging.Logger,
 ) -> None:
     """
-    Tests that listing appointments for a week with no appointments returns an empty list.
+    Tests that listing appointments for a week with invalid dates raises a ValueError.
     """
     logger.info("TEST-RUN: test_list_all_for_week_invalid_date")
 

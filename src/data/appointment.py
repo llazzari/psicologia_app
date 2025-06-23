@@ -11,6 +11,24 @@ from utils.helpers import generate_time_slots
 log = logging.getLogger("TestLogger")
 
 
+def _create_time_slots() -> list[datetime.time]:
+    morning_time_slots = generate_time_slots(
+        start_hour=8,
+        start_minutes=0,
+        end_hour=11,
+        end_minutes=45,
+        interval_minutes=45,
+    )
+    afternoon_time_slots = generate_time_slots(
+        start_hour=13,
+        start_minutes=30,
+        end_hour=19,
+        end_minutes=30,
+        interval_minutes=45,
+    )
+    return morning_time_slots + afternoon_time_slots
+
+
 def create_appointments_table(connection: duckdb.DuckDBPyConnection) -> None:
     """Creates the 'appointments' table with the required schema."""
     try:
@@ -123,7 +141,7 @@ def update(connection: duckdb.DuckDBPyConnection, appointment: Appointment) -> N
     log.info(f"APP-LOGIC: Successfully updated appointment with ID {appointment.id}.")
 
 
-def list_all_for_week(
+def get_all_for_week(
     connection: duckdb.DuckDBPyConnection, week: list[datetime.date]
 ) -> pd.DataFrame:
     """
@@ -145,43 +163,39 @@ def list_all_for_week(
         WHERE a.appointment_date BETWEEN ? AND ?
         """
         cursor = connection.execute(sql, (min(week), max(week)))
-        df: pd.DataFrame = cursor.df()
-
-        days = [
-            f"{['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'][d.weekday()]} ({d.day:02d}/{d.month:02d})"
-            for d in week
-        ]
-
-        morning_time_slots = generate_time_slots(
-            start_hour=8,
-            start_minutes=0,
-            end_hour=11,
-            end_minutes=45,
-            interval_minutes=45,
-        )
-        afternoon_time_slots = generate_time_slots(
-            start_hour=13,
-            start_minutes=30,
-            end_hour=19,
-            end_minutes=30,
-            interval_minutes=45,
-        )
-        time_slots = morning_time_slots + afternoon_time_slots
-
-        if df.empty:
-            log.warning("No appointments found.")
-        # Pivot the DataFrame so that each weekday is a column
-        df = df.pivot(
-            index="appointment_hour", columns="day_column", values="patient_name"
-        ).reindex(index=time_slots, columns=days, fill_value="")
-        df.index.name = "Horário"
-        df.index = pd.to_datetime(df.index.astype(str)).strftime("%H:%M")  # type: ignore
-        df.fillna("", inplace=True)  # type: ignore
-        log.info("Successfully retrieved appointments schedule for the week.")
-        return df
+        return cursor.df()
     except Exception:
         log.error(
             "Failed to retrieve appointments.",
             exc_info=True,
         )
         raise
+
+
+def list_all_for_week(
+    connection: duckdb.DuckDBPyConnection, week: list[datetime.date]
+) -> pd.DataFrame:
+    days = [
+        f"{['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'][d.weekday()]} ({d.day:02d}/{d.month:02d})"
+        for d in week
+    ]
+
+    time_slots: list[datetime.time] = _create_time_slots()
+
+    df = get_all_for_week(connection, week)
+
+    if df.empty:
+        log.warning("No appointments found.")
+
+    def _format_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+        df = df.pivot(
+            index="appointment_hour", columns="day_column", values="patient_name"
+        ).reindex(index=time_slots, columns=days, fill_value="")
+        df.index.name = "Horário"
+        df.index = pd.to_datetime(df.index.astype(str)).strftime("%H:%M")  # type: ignore
+        return df.fillna("")  # type: ignore
+
+    df = _format_dataframe(df)
+
+    log.info("Successfully retrieved appointments schedule for the week.")
+    return df
