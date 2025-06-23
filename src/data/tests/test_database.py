@@ -21,7 +21,7 @@ def test_connect_success(logger: logging.Logger) -> None:
         logger.info("SUCCESS: Database connection established successfully")
     finally:
         if "connection" in locals():
-            connection.close()
+            connection.close()  # type: ignore
         if os.path.exists(db_file):
             os.remove(db_file)
 
@@ -61,7 +61,7 @@ def test_initialize_creates_all_tables(logger: logging.Logger) -> None:
         logger.info("SUCCESS: All required tables were created successfully")
     finally:
         if "connection" in locals():
-            connection.close()
+            connection.close()  # type: ignore
         if os.path.exists(db_file):
             os.remove(db_file)
 
@@ -82,6 +82,7 @@ def test_create_patients_table(
         "is_child": "BOOLEAN",
         "school": "VARCHAR",
         "tutor_cpf_cnpj": "VARCHAR",
+        "status": "VARCHAR",
     }
     assert columns == expected_columns, "Table columns do not match expected schema."
     logger.info("SUCCESS: 'patients' table schema is correct.")
@@ -111,6 +112,7 @@ def test_initialize_is_idempotent(logger: logging.Logger) -> None:
             "is_child": "BOOLEAN",
             "school": "VARCHAR",
             "tutor_cpf_cnpj": "VARCHAR",
+            "status": "VARCHAR",
         }
         assert columns == expected_columns, (
             "Table schema changed after multiple initializations"
@@ -119,6 +121,6 @@ def test_initialize_is_idempotent(logger: logging.Logger) -> None:
         logger.info("SUCCESS: Multiple initializations handled correctly")
     finally:
         if "connection" in locals():
-            connection.close()
+            connection.close()  # type: ignore
         if os.path.exists(db_file):
             os.remove(db_file)

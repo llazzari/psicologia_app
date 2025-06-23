@@ -56,6 +56,7 @@ def patient_child_model() -> Patient:
         cpf_cnpj="123.456.789-00",
         school="Test School",
         tutor_cpf_cnpj="987.654.321-00",
+        status="in testing",
     )
 
 

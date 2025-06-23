@@ -19,10 +19,11 @@ def create_patients_table(connection: duckdb.DuckDBPyConnection) -> None:
             name VARCHAR NOT NULL, 
             address VARCHAR,
             birthdate DATE, 
-            is_child BOOLEAN NOT NULL,
+            is_child BOOLEAN,
             cpf_cnpj VARCHAR, 
             school VARCHAR, 
             tutor_cpf_cnpj VARCHAR,
+            status VARCHAR CHECK (status IN ('active', 'inactive', 'in testing', 'lead')) DEFAULT 'active' NOT NULL
         );
         """
         connection.execute(sql_command)
@@ -45,7 +46,7 @@ def add(connection: duckdb.DuckDBPyConnection, patient: Patient) -> UUID:
 
         sql = """
         INSERT INTO patients 
-        SELECT id, name, address, birthdate, is_child, cpf_cnpj, school, tutor_cpf_cnpj FROM patient_df
+        SELECT id, name, address, birthdate, is_child, cpf_cnpj, school, tutor_cpf_cnpj, status FROM patient_df
         """
         connection.execute(sql)
         log.info(f"APP-LOGIC: Successfully inserted patient with ID {patient.id}.")
@@ -99,7 +100,8 @@ def update(connection: duckdb.DuckDBPyConnection, patient: Patient) -> None:
         is_child = patient_df.is_child, 
         cpf_cnpj = patient_df.cpf_cnpj, 
         school = patient_df.school, 
-        tutor_cpf_cnpj = patient_df.tutor_cpf_cnpj
+        tutor_cpf_cnpj = patient_df.tutor_cpf_cnpj,
+        status = patient_df.status
     FROM patient_df
     WHERE patients.id = patient_df.id;
     """

@@ -16,14 +16,24 @@ class Patient(BaseModel):
     id: UUID = Field(default_factory=uuid4)
 
     name: str
-    address: str
-    birthdate: date
-    is_child: bool
+    address: Optional[str] = None
+    birthdate: Optional[date] = None
+    is_child: bool = True
 
     cpf_cnpj: Optional[str] = None
 
     school: Optional[str] = None
     tutor_cpf_cnpj: Optional[str] = None
+    status: str = "active"
+
+    @field_validator("status")
+    @classmethod
+    def check_status_value(cls, v: str) -> str:
+        """Ensures status has a valid value."""
+        allowed_statuses: set[str] = {"active", "inactive", "in testing"}
+        if v not in allowed_statuses:
+            raise ValueError(f"Status must be one of {allowed_statuses}")
+        return v
 
     class ConfigDict:
         """
