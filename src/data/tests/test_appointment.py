@@ -164,14 +164,14 @@ def test_add_appointment_with_invalid_status(
     """
     logger.info("TEST-RUN: test_add_appointment_with_invalid_status")
 
-    invalid_appointment = appointment_attended.model_copy()
-    invalid_appointment_dict = invalid_appointment.model_dump()
-    invalid_appointment_dict["status"] = "invalid_status"
+    invalid_appointment = appointment_attended.model_copy(
+        update={"status": "invalid_status"}
+    )
 
     with pytest.raises(Exception):
         appointment.add(
             db_connection,
-            Appointment(**invalid_appointment_dict),  # type: ignore
+            invalid_appointment,
         )
 
     logger.info("SUCCESS: Invalid appointment status handled correctly")

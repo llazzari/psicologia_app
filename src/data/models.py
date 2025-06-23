@@ -30,7 +30,7 @@ class Patient(BaseModel):
     @classmethod
     def check_status_value(cls, v: str) -> str:
         """Ensures status has a valid value."""
-        allowed_statuses: set[str] = {"active", "inactive", "in testing"}
+        allowed_statuses: set[str] = {"active", "inactive", "in testing", "lead"}
         if v not in allowed_statuses:
             raise ValueError(f"Status must be one of {allowed_statuses}")
         return v
@@ -55,6 +55,7 @@ class Appointment(BaseModel):
     appointment_hour: time
     status: str  # Validated to be 'attended', 'cancelled', or 'no-show'
     weekday: Optional[str] = None
+    is_free_of_charge: bool = False
 
     @field_validator("status")
     @classmethod

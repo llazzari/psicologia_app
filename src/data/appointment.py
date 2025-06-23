@@ -40,7 +40,8 @@ def create_appointments_table(connection: duckdb.DuckDBPyConnection) -> None:
             appointment_date DATE NOT NULL,
             appointment_hour TIME NOT NULL,
             status VARCHAR CHECK (status IN ('attended', 'cancelled', 'no-show')) NOT NULL,
-            weekday VARCHAR DEFAULT NULL
+            weekday VARCHAR DEFAULT NULL,
+            is_free_of_charge BOOLEAN DEFAULT FALSE NOT NULL,
         );
         """
         connection.execute(sql_command)
@@ -64,7 +65,15 @@ def add(connection: duckdb.DuckDBPyConnection, appointment: Appointment) -> UUID
 
         sql = """
         INSERT INTO appointments 
-        SELECT id, patient_id, appointment_date, appointment_hour, status, weekday FROM appointment_df
+        SELECT 
+            id, 
+            patient_id, 
+            appointment_date, 
+            appointment_hour, 
+            status, 
+            weekday, 
+            is_free_of_charge 
+        FROM appointment_df
         """
         connection.execute(sql)
         log.info(
@@ -128,7 +137,8 @@ def update(connection: duckdb.DuckDBPyConnection, appointment: Appointment) -> N
         appointment_date = appointment_df.appointment_date,
         appointment_hour = appointment_df.appointment_hour,
         status = appointment_df.status,
-        weekday = appointment_df.weekday
+        weekday = appointment_df.weekday,
+        is_free_of_charge = appointment_df.is_free_of_charge,
     FROM appointment_df
     WHERE appointments.id = appointment_df.id;
     """
