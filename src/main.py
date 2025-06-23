@@ -13,7 +13,7 @@ def main():
 
     st.markdown("""
     Este é o seu painel de controle para gerenciar agendamentos, pacientes e finanças.
-
+            
     Utilize o menu na barra lateral esquerda para navegar entre as diferentes seções do aplicativo.
 
     **Funcionalidades disponíveis:**
