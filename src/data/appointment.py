@@ -1,4 +1,3 @@
-import datetime
 import logging
 from uuid import UUID
 
@@ -6,27 +5,8 @@ import duckdb
 import pandas as pd
 
 from data.models import Appointment
-from utils.helpers import generate_time_slots
 
 log = logging.getLogger("TestLogger")
-
-
-def _create_time_slots() -> list[datetime.time]:
-    morning_time_slots = generate_time_slots(
-        start_hour=8,
-        start_minutes=0,
-        end_hour=11,
-        end_minutes=45,
-        interval_minutes=45,
-    )
-    afternoon_time_slots = generate_time_slots(
-        start_hour=13,
-        start_minutes=30,
-        end_hour=19,
-        end_minutes=30,
-        interval_minutes=45,
-    )
-    return morning_time_slots + afternoon_time_slots
 
 
 def create_appointments_table(connection: duckdb.DuckDBPyConnection) -> None:
@@ -36,12 +16,13 @@ def create_appointments_table(connection: duckdb.DuckDBPyConnection) -> None:
         sql_command = """
         CREATE TABLE IF NOT EXISTS appointments (
             id UUID PRIMARY KEY, 
-            patient_id UUID NOT NULL, 
+            patient_id UUID NOT NULL,
+            patient_name VARCHAR NOT NULL, 
             appointment_date DATE NOT NULL,
-            appointment_hour TIME NOT NULL,
-            status VARCHAR CHECK (status IN ('attended', 'cancelled', 'no-show')) NOT NULL,
-            weekday VARCHAR DEFAULT NULL,
+            appointment_time TIME NOT NULL,
+            duration INTEGER DEFAULT 45 NOT NULL, -- in minutes
             is_free_of_charge BOOLEAN DEFAULT FALSE NOT NULL,
+            notes VARCHAR DEFAULT '' NOT NULL
         );
         """
         connection.execute(sql_command)
@@ -51,7 +32,7 @@ def create_appointments_table(connection: duckdb.DuckDBPyConnection) -> None:
         raise
 
 
-def add(connection: duckdb.DuckDBPyConnection, appointment: Appointment) -> UUID:
+def insert(connection: duckdb.DuckDBPyConnection, appointment: Appointment) -> UUID:
     """
     Adds a new appointment to the 'appointments' table.
     The appointment should be a dictionary with keys matching the table schema.
@@ -64,15 +45,16 @@ def add(connection: duckdb.DuckDBPyConnection, appointment: Appointment) -> UUID
         connection.register("appointment_df", appointment_df)
 
         sql = """
-        INSERT INTO appointments 
+        INSERT OR REPLACE INTO appointments 
         SELECT 
             id, 
             patient_id, 
-            appointment_date, 
-            appointment_hour, 
-            status, 
-            weekday, 
-            is_free_of_charge 
+            patient_name,
+            appointment_date,
+            appointment_time, 
+            duration,
+            is_free_of_charge,
+            notes 
         FROM appointment_df
         """
         connection.execute(sql)
@@ -121,59 +103,21 @@ def get_by_id(
         raise
 
 
-def update(connection: duckdb.DuckDBPyConnection, appointment: Appointment) -> None:
+def get_all(connection: duckdb.DuckDBPyConnection) -> list[Appointment]:
     """
-    Updates an existing appointment's data in the 'appointments' table.
-    """
-    log.info(f"APP-LOGIC: Attempting to update appointment with ID {appointment.id}.")
-
-    appointment_df = pd.DataFrame([appointment.model_dump()])
-
-    connection.register("appointment_df", appointment_df)
-
-    sql = """
-    UPDATE appointments 
-    SET patient_id = appointment_df.patient_id, 
-        appointment_date = appointment_df.appointment_date,
-        appointment_hour = appointment_df.appointment_hour,
-        status = appointment_df.status,
-        weekday = appointment_df.weekday,
-        is_free_of_charge = appointment_df.is_free_of_charge,
-    FROM appointment_df
-    WHERE appointments.id = appointment_df.id;
-    """
-
-    connection.execute(sql)
-    # Ensure weekday is set
-    if not appointment.weekday:
-        appointment = appointment.model_copy(update={"weekday": None})
-
-    log.info(f"APP-LOGIC: Successfully updated appointment with ID {appointment.id}.")
-
-
-def get_all_for_week(
-    connection: duckdb.DuckDBPyConnection, week: list[datetime.date]
-) -> pd.DataFrame:
-    """
-    Lists all appointments for the given week in a format ready for the schedule page.
-    Returns a DataFrame with:
-    - Time slots as index
-    - Days of the week as columns (e.g. 'Segunda (20/06)')
-    - Patient names in the cells
+    Lists all appointments for the given week.
     """
     try:
         log.info("APP-LOGIC: Attempting to list appointments with patient names.")
-        sql = """
-        SELECT 
-            a.weekday as day_column,
-            a.appointment_hour,
-            p.name as patient_name
-        FROM appointments a
-        JOIN patients p ON a.patient_id = p.id
-        WHERE a.appointment_date BETWEEN ? AND ?
-        """
-        cursor = connection.execute(sql, (min(week), max(week)))
-        return cursor.df()
+        sql = """SELECT * FROM appointments"""
+        cursor = connection.execute(sql)
+
+        return [
+            Appointment(
+                **{k: v for k, v in zip(Appointment.model_fields.keys(), result)}  # type: ignore
+            )
+            for result in cursor.fetchall()
+        ]
     except Exception:
         log.error(
             "Failed to retrieve appointments.",
@@ -182,30 +126,22 @@ def get_all_for_week(
         raise
 
 
-def list_all_for_week(
-    connection: duckdb.DuckDBPyConnection, week: list[datetime.date]
-) -> pd.DataFrame:
-    days = [
-        f"{['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'][d.weekday()]} ({d.day:02d}/{d.month:02d})"
-        for d in week
-    ]
-
-    time_slots: list[datetime.time] = _create_time_slots()
-
-    df = get_all_for_week(connection, week)
-
-    if df.empty:
-        log.warning("No appointments found.")
-
-    def _format_dataframe(df: pd.DataFrame) -> pd.DataFrame:
-        df = df.pivot(
-            index="appointment_hour", columns="day_column", values="patient_name"
-        ).reindex(index=time_slots, columns=days, fill_value="")
-        df.index.name = "Horário"
-        df.index = pd.to_datetime(df.index.astype(str)).strftime("%H:%M")  # type: ignore
-        return df.fillna("")  # type: ignore
-
-    df = _format_dataframe(df)
-
-    log.info("Successfully retrieved appointments schedule for the week.")
-    return df
+def remove(connection: duckdb.DuckDBPyConnection, appointment_id: UUID) -> None:
+    """
+    Removes an appointment by ID from the 'appointments' table.
+    """
+    try:
+        log.info(
+            f"APP-LOGIC: Attempting to remove appointment with ID {appointment_id}."
+        )
+        sql = "DELETE FROM appointments WHERE id = ?;"
+        connection.execute(sql, (appointment_id,))
+        log.info(
+            f"APP-LOGIC: Successfully removed appointment with ID {appointment_id}."
+        )
+    except Exception:
+        log.error(
+            f"APP-LOGIC: Failed to remove appointment with ID {appointment_id}.",
+            exc_info=True,
+        )
+        raise
