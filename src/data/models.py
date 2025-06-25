@@ -2,7 +2,7 @@ from datetime import date, time
 from typing import Optional
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field, ValidationInfo, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class Patient(BaseModel):
@@ -51,39 +51,12 @@ class Appointment(BaseModel):
 
     id: UUID = Field(default_factory=uuid4)
     patient_id: UUID
+    patient_name: str
     appointment_date: date
-    appointment_hour: time
-    status: str  # Validated to be 'attended', 'cancelled', or 'no-show'
-    weekday: Optional[str] = None
+    appointment_time: time
+    duration: int = 45  # in minutes
     is_free_of_charge: bool = False
-
-    @field_validator("status")
-    @classmethod
-    def check_status_value(cls, v: str) -> str:
-        """Ensures status has a valid value."""
-        allowed_statuses = {"attended", "cancelled", "no-show"}
-        if v not in allowed_statuses:
-            raise ValueError(f"Status must be one of {allowed_statuses}")
-        return v
-
-    @field_validator("weekday", mode="before")
-    @classmethod
-    def set_weekday(cls, v: str | None, info: ValidationInfo) -> Optional[str]:
-        dt = info.data.get("appointment_date")
-        if not isinstance(dt, date):
-            return None
-        weekdays_pt = [
-            "Segunda",
-            "Terça",
-            "Quarta",
-            "Quinta",
-            "Sexta",
-            "Sábado",
-            "Domingo",
-        ]
-        weekday_idx = dt.weekday()
-        weekday_name = weekdays_pt[weekday_idx] if 0 <= weekday_idx < 7 else "?"
-        return f"{weekday_name} ({dt.day:02d}/{dt.month:02d})"
+    notes: str = ""
 
     class ConfigDict:
         """Pydantic configuration options."""
