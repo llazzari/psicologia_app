@@ -6,8 +6,12 @@ from data import database
 def main():
     """Main function to run the Streamlit application."""
 
-    with database.connect(database.DB_PATH) as connection:
-        database.initialize(connection)
+    st.set_page_config(
+        page_title="Sistema de Gerenciamento",
+        page_icon=":clipboard:",
+        layout="wide",
+        initial_sidebar_state="expanded",
+    )
 
     st.title("Bem-vindo(a) ao Sistema de Gerenciamento")
 
@@ -22,6 +26,10 @@ def main():
 
     Comece selecionando uma opção no menu ao lado.
     """)
+
+    with database.connect(database.DB_PATH) as connection:
+        database.initialize(connection)
+        # patient.get_mock(connection)
 
 
 if __name__ == "__main__":
