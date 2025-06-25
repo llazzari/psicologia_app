@@ -1,10 +1,12 @@
+import datetime
 import logging
 from uuid import UUID
 
 import duckdb
 import pandas as pd
 
-from data.models import Patient
+from data import appointment
+from data.models import Appointment, Patient
 
 log = logging.getLogger("TestLogger")
 
@@ -33,7 +35,7 @@ def create_patients_table(connection: duckdb.DuckDBPyConnection) -> None:
         raise
 
 
-def add(connection: duckdb.DuckDBPyConnection, patient: Patient) -> UUID:
+def insert(connection: duckdb.DuckDBPyConnection, patient: Patient) -> UUID:
     """
     Adds a new patient to the 'patients' table using a Pydantic model.
     """
@@ -45,7 +47,7 @@ def add(connection: duckdb.DuckDBPyConnection, patient: Patient) -> UUID:
         connection.register("patient_df", patient_df)
 
         sql = """
-        INSERT INTO patients 
+        INSERT OR REPLACE INTO patients 
         SELECT id, name, address, birthdate, is_child, cpf_cnpj, school, tutor_cpf_cnpj, status FROM patient_df
         """
         connection.execute(sql)
@@ -83,27 +85,47 @@ def get_by_id(connection: duckdb.DuckDBPyConnection, patient_id: UUID) -> Patien
         raise
 
 
-def update(connection: duckdb.DuckDBPyConnection, patient: Patient) -> None:
+def get_all(connection: duckdb.DuckDBPyConnection) -> list[Patient]:
     """
-    Updates an existing patient's data in the 'patients' table.
+    Retrieves all patients from the 'patients' table.
+    Returns a list of Pydantic model instances.
     """
-    log.info(f"APP-LOGIC: Attempting to update patient '{patient.name}'.")
-    patient_df = pd.DataFrame([patient.model_dump()])
+    try:
+        log.info("APP-LOGIC: Attempting to retrieve all patients.")
+        sql = "SELECT * FROM patients;"
+        results = connection.execute(sql).fetchall()  # type: ignore
 
-    connection.register("patient_df", patient_df)
+        if not results:
+            log.warning("APP-LOGIC: No patients found in the database.")
+            return []
 
-    sql = """
-    UPDATE patients 
-    SET name = patient_df.name, 
-        address = patient_df.address, 
-        birthdate = patient_df.birthdate, 
-        is_child = patient_df.is_child, 
-        cpf_cnpj = patient_df.cpf_cnpj, 
-        school = patient_df.school, 
-        tutor_cpf_cnpj = patient_df.tutor_cpf_cnpj,
-        status = patient_df.status
-    FROM patient_df
-    WHERE patients.id = patient_df.id;
-    """
-    connection.execute(sql)
-    log.info(f"APP-LOGIC: Successfully updated patient with ID {patient.id}.")
+        patients = [
+            Patient(**{k: v for k, v in zip(Patient.model_fields.keys(), row)})  # type: ignore
+            for row in results
+        ]
+        log.info(f"APP-LOGIC: Successfully retrieved {len(patients)} patients.")
+        return patients
+    except Exception:
+        log.error("APP-LOGIC: Failed to retrieve all patients.", exc_info=True)
+        raise
+
+
+def get_mock(connection: duckdb.DuckDBPyConnection) -> None:
+    patients = [
+        Patient(name="Active da Silva"),
+        Patient(name="Testing Souza", status="in testing"),
+    ]
+    for i, pat in enumerate(patients, start=1):
+        insert(connection, pat)
+        appointment.insert(
+            connection,
+            Appointment(
+                patient_id=pat.id,
+                patient_name=pat.name,
+                appointment_date=datetime.date.today(),
+                appointment_time=datetime.time(7 + i, 0),
+                duration=45 * i,
+                is_free_of_charge=False,
+                notes="Reunião com os pais.",
+            ),
+        )
