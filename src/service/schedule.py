@@ -5,7 +5,7 @@ from typing import Any
 import duckdb
 
 from data import appointment, database
-from data.database import DB_PATH
+from data.database import MOCK_DB_PATH
 from data.models import Appointment
 
 
@@ -53,6 +53,6 @@ def _turn_weekly_appointments_into_calendar_events(
 
 
 def get_calendar_events() -> list[dict[str, Any]]:
-    with database.connect(DB_PATH) as connection:
+    with database.connect(MOCK_DB_PATH) as connection:
         appointments: list[Appointment] = appointment.get_all(connection)
         return _turn_weekly_appointments_into_calendar_events(appointments)
