@@ -1,5 +1,4 @@
-import uuid
-from datetime import date, datetime, time
+from datetime import datetime
 from typing import Any, Optional
 
 import streamlit as st
@@ -28,27 +27,20 @@ def schedule_appointment(
             st.warning("Nenhum paciente cadastrado. Cadastre um paciente primeiro.")
             return
 
-        date_value: date = datetime.now().date()
-        time_value: time = datetime.now().time()
-        duration_value: int = 45
-        is_free_of_charge_value: bool = False
-        notes_value: str = ""
-        appt_id: uuid.UUID = uuid.uuid4()
         index: int = 0
+        appt = Appointment(patient_id=patients[0].id, patient_name="")
 
         if selected_event:
             appt: Appointment = get_appointment_from(connection, selected_event)
             pat: Patient = patient.get_by_id(connection, appt.patient_id)
             index: int = patients.index(pat)
-            date_value: date = appt.appointment_date
-            time_value: time = appt.appointment_time
-            duration_value: int = appt.duration
-            is_free_of_charge_value: bool = appt.is_free_of_charge
-            notes_value: str = appt.notes
-            appt_id: uuid.UUID = appt.id
         elif selected_datetime:
-            date_value: date = selected_datetime.date()
-            time_value: time = selected_datetime.time()
+            appt.appointment_date = selected_datetime.date()
+            appt.appointment_time = selected_datetime.time()
+        else:
+            raise ValueError(
+                "One of selected_datetime and selected_event must be provided"
+            )
 
         selected_patient = st.selectbox(
             "Selecione um paciente",
@@ -58,41 +50,35 @@ def schedule_appointment(
             index=index,
         )
 
+        appt.patient_id = selected_patient.id
+        appt.patient_name = selected_patient.name
+
         col_1, col_2, col_3 = st.columns(3, vertical_alignment="center")
         with col_1:
-            appointment_date = st.date_input(
+            appt.appointment_date = st.date_input(
                 "Data da sessão",
-                value=date_value,
+                value=appt.appointment_date,
             )
         with col_2:
-            appointment_time = st.time_input(
-                "Horário de início", value=time_value, step=300
+            appt.appointment_time = st.time_input(
+                "Horário de início", value=appt.appointment_time, step=300
             )
         with col_3:
-            duration = st.number_input(
+            appt.duration = st.number_input(
                 "Duração (minutos)",
                 min_value=15,
                 max_value=300,  # 5 hours max
-                value=duration_value,
+                value=appt.duration,
                 step=5,
                 format="%d",
                 help="Duração da sessão em minutos: 1 sessão típica -> 45 min, 2 sessões -> 90 min, 3 sessões -> 135 min.",
             )
 
-        is_free_of_charge = st.checkbox("É gratuita?", value=is_free_of_charge_value)
-
-        notes = st.text_area("Observações", value=notes_value)
-
-        appt = Appointment(
-            id=appt_id,
-            patient_id=selected_patient.id,
-            patient_name=selected_patient.name,
-            appointment_date=appointment_date,
-            appointment_time=appointment_time,
-            duration=duration,
-            is_free_of_charge=is_free_of_charge,
-            notes=notes,
+        appt.is_free_of_charge = st.checkbox(
+            "É gratuita?", value=appt.is_free_of_charge
         )
+
+        appt.notes = st.text_area("Observações", value=appt.notes)
 
         col1, col2, col3 = st.columns([2, 2, 1])
         if selected_event:
@@ -105,7 +91,7 @@ def schedule_appointment(
                     st.rerun()
             with col2:
                 if st.button(
-                    "Remarcar",
+                    "Remarcar depois",
                     help="Remove a sessão do calendário mas permite a remarcação posteriormente.",
                 ):
                     appt.status = "to recover"
@@ -126,7 +112,7 @@ calendar_options: dict[str, Any] = {
     "headerToolbar": {
         "left": "today prev,next",
         "center": "title",
-        "right": "timeGridDay,timeGridWeek",
+        "right": "timeGridDay,timeGridWeek,dayGridMonth",
     },
     "slotMinTime": "08:00:00",
     "slotMaxTime": "19:30:00",
