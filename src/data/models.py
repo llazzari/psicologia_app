@@ -1,4 +1,4 @@
-from datetime import date, time
+from datetime import date, datetime, time
 from typing import Optional
 from uuid import UUID, uuid4
 
@@ -17,6 +17,7 @@ class Patient(BaseModel):
 
     name: str
     address: Optional[str] = None
+    contact: Optional[str] = None  # Phone number or other contact info
     birthdate: Optional[date] = None
     is_child: bool = True
 
@@ -33,6 +34,14 @@ class Patient(BaseModel):
         allowed_statuses: set[str] = {"active", "inactive", "in testing", "lead"}
         if v not in allowed_statuses:
             raise ValueError(f"Status must be one of {allowed_statuses}")
+        return v
+
+    @field_validator("contact", "cpf_cnpj", "tutor_cpf_cnpj")
+    @classmethod
+    def check_contact_value(cls, v: Optional[str]) -> Optional[str]:
+        """Ensures contact has a valid value."""
+        if v is not None and len(v) != 11:
+            raise ValueError("Contact must be 11 digits")
         return v
 
     class ConfigDict:
@@ -52,11 +61,21 @@ class Appointment(BaseModel):
     id: UUID = Field(default_factory=uuid4)
     patient_id: UUID
     patient_name: str
-    appointment_date: date
-    appointment_time: time
+    appointment_date: date = Field(default_factory=date.today)
+    appointment_time: time = Field(default_factory=datetime.now().time)
     duration: int = 45  # in minutes
     is_free_of_charge: bool = False
     notes: str = ""
+    status: str = "done"
+
+    @field_validator("status")
+    @classmethod
+    def check_status_value(cls, v: str) -> str:
+        """Ensures status has a valid value."""
+        allowed_statuses: set[str] = {"done", "to recover"}
+        if v not in allowed_statuses:
+            raise ValueError(f"Status must be one of {allowed_statuses}")
+        return v
 
     class ConfigDict:
         """Pydantic configuration options."""

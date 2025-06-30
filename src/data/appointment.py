@@ -22,7 +22,8 @@ def create_appointments_table(connection: duckdb.DuckDBPyConnection) -> None:
             appointment_time TIME NOT NULL,
             duration INTEGER DEFAULT 45 NOT NULL, -- in minutes
             is_free_of_charge BOOLEAN DEFAULT FALSE NOT NULL,
-            notes VARCHAR DEFAULT '' NOT NULL
+            notes VARCHAR DEFAULT '' NOT NULL,
+            status VARCHAR CHECK (status IN ('done', 'to recover')) DEFAULT 'done' NOT NULL
         );
         """
         connection.execute(sql_command)
@@ -32,7 +33,7 @@ def create_appointments_table(connection: duckdb.DuckDBPyConnection) -> None:
         raise
 
 
-def insert(connection: duckdb.DuckDBPyConnection, appointment: Appointment) -> UUID:
+def insert(connection: duckdb.DuckDBPyConnection, appointment: Appointment) -> None:
     """
     Adds a new appointment to the 'appointments' table.
     The appointment should be a dictionary with keys matching the table schema.
@@ -54,14 +55,14 @@ def insert(connection: duckdb.DuckDBPyConnection, appointment: Appointment) -> U
             appointment_time, 
             duration,
             is_free_of_charge,
-            notes 
+            notes,
+            status 
         FROM appointment_df
         """
         connection.execute(sql)
         log.info(
             f"APP-LOGIC: Successfully inserted appointment with ID {appointment.id}."
         )
-        return appointment.id
     except Exception:
         log.error(
             f"APP-LOGIC: Failed to add appointment for patient ID {appointment.patient_id}.",
@@ -109,7 +110,7 @@ def get_all(connection: duckdb.DuckDBPyConnection) -> list[Appointment]:
     """
     try:
         log.info("APP-LOGIC: Attempting to list appointments with patient names.")
-        sql = """SELECT * FROM appointments"""
+        sql = """SELECT * FROM appointments WHERE status == 'done'"""
         cursor = connection.execute(sql)
 
         return [

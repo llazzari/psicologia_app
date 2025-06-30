@@ -6,7 +6,6 @@ import streamlit as st
 from streamlit_calendar import calendar  # type: ignore
 
 from data import appointment, database, patient
-from data.database import DB_PATH
 from data.models import Appointment, Patient
 from service.schedule import get_appointment_from, get_calendar_events
 
@@ -22,7 +21,7 @@ def schedule_appointment(
     if not selected_datetime and not selected_event:
         raise ValueError("selected_datetime and selected_event must be provided")
 
-    with database.connect(DB_PATH) as connection:
+    with database.connect(database.MOCK_DB_PATH) as connection:
         patients: list[Patient] = patient.get_all(connection)
         print(patients)
         if not patients:
@@ -95,15 +94,26 @@ def schedule_appointment(
             notes=notes,
         )
 
-        col1, _, col2 = st.columns([2, 1, 2])
-        with col1:
-            if st.button("Cancelar esta sessão"):
-                st.warning("Agendamento cancelado.")
-                appointment.remove(connection, appt.id)
-                st.rerun()
-        with col2:
-            _, col_rhs = st.columns([2, 1])
-            with col_rhs:
+        col1, col2, col3 = st.columns([2, 2, 1])
+        if selected_event:
+            with col1:
+                if st.button(
+                    "Cancelar", help="Cancela a sessão e a remove do calendário."
+                ):
+                    appointment.remove(connection, appt.id)
+                    st.warning("Agendamento cancelado.")
+                    st.rerun()
+            with col2:
+                if st.button(
+                    "Remarcar",
+                    help="Remove a sessão do calendário mas permite a remarcação posteriormente.",
+                ):
+                    appt.status = "to recover"
+                    appointment.insert(connection, appt)
+                    st.warning("Agendamento remarcado.")
+                    st.rerun()
+        with col3:
+            with st.columns([1, 3])[1]:
                 if st.button("Agendar", type="primary"):
                     appointment.insert(connection, appt)
                     st.success("Consulta agendada!")
