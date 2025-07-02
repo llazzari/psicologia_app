@@ -106,7 +106,7 @@ def _display_patient_info(patient_: Patient):
     with st.container(border=True):
         col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
         with col1:
-            st.markdown(f"**{patient_.name}**")
+            st.markdown(f"**{patient_.name.strip()}**")
             if patient_.is_child:
                 st.caption("Criança/Adolescente")
         with col2:
