@@ -5,6 +5,12 @@ import streamlit as st
 
 from data import database, patient
 from data.models import Patient
+from modules import navbar
+
+st.set_page_config(
+    layout="wide", page_title="Pacientes", initial_sidebar_state="collapsed"
+)
+navbar.render()
 
 
 @st.dialog("Adicionar/editar dados do paciente", width="small")

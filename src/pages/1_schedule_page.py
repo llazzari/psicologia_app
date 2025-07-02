@@ -6,10 +6,15 @@ from streamlit_calendar import calendar  # type: ignore
 
 from data import appointment, database, patient
 from data.models import Appointment, Patient
+from modules import navbar
 from service.schedule import get_appointment_from, get_calendar_events
 
-st.set_page_config(layout="wide")
+st.set_page_config(
+    layout="wide", page_title="Agendamento Semanal", initial_sidebar_state="collapsed"
+)
 st.title("🗓️ Agendamento Semanal")
+
+navbar.render()
 
 
 @st.dialog("Agende a sessão", width="large")

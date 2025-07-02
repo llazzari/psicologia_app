@@ -6,11 +6,15 @@ import streamlit as st
 
 from data import database, monthly_invoice, patient
 from data.models import MonthlyInvoice, Patient
+from modules import navbar
 
 st.set_page_config(
     layout="wide",
     page_title="Controle Financeiro",
+    initial_sidebar_state="collapsed",
 )
+
+navbar.render()
 
 
 def _get_total(
