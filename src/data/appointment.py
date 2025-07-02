@@ -1,4 +1,6 @@
+import datetime
 import logging
+from typing import Optional
 from uuid import UUID
 
 import duckdb
@@ -104,14 +106,24 @@ def get_by_id(
         raise
 
 
-def get_all(connection: duckdb.DuckDBPyConnection) -> list[Appointment]:
+def get_all(
+    connection: duckdb.DuckDBPyConnection,
+    period: Optional[list[datetime.date]] = None,  # type: ignore
+) -> list[Appointment]:
     """
-    Lists all appointments for the given week.
+    Lists all appointments for a given period.
     """
     try:
         log.info("APP-LOGIC: Attempting to list appointments with patient names.")
-        sql = """SELECT * FROM appointments WHERE status == 'done'"""
-        cursor = connection.execute(sql)
+        sql = """SELECT * FROM appointments WHERE status == 'done' AND appointment_date BETWEEN ? AND ?"""
+
+        if not period:
+            today: datetime.date = datetime.date.today()
+            period: list[datetime.date] = [
+                datetime.date(today.year, 1, 1),
+                today + datetime.timedelta(days=30),
+            ]
+        cursor = connection.execute(sql, (period[0], period[1]))
 
         return [
             Appointment(
