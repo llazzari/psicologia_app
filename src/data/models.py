@@ -90,17 +90,22 @@ class MonthlyInvoice(BaseModel):
 
     id: UUID = Field(default_factory=uuid4)
     patient_id: UUID
-    invoice_month: str  # Format MMM, e.g. "Jan", "Feb", etc.
-    session_price: int  # in cents
-    sessions_completed: int
-    payment_status: str  # Validated to be 'pending', 'paid', 'overdue', 'waived'
+    invoice_month: int = Field(ge=1, le=12)
+    invoice_year: int
+    appointment_dates: list[date] = Field(default_factory=list)  # type: ignore
+    session_price: int = Field(default=23000, ge=0)  # in cents
+    sessions_completed: int = Field(default=0, ge=0)
+    sessions_to_recover: int = Field(default=0, ge=0)
+    free_sessions: int = Field(default=0, ge=0)
+    payment_status: str = "pending"  # one of 'pending', 'paid', 'overdue', 'waived'
+    nf_number: Optional[int] = None
     payment_date: Optional[date] = None
 
     @field_validator("payment_status")
     @classmethod
     def check_payment_status(cls, v: str) -> str:
         """Ensures payment_status has a valid value."""
-        allowed_statuses = {"pending", "paid", "overdue", "waived"}
+        allowed_statuses: set[str] = {"pending", "paid", "overdue", "waived"}
         if v not in allowed_statuses:
             raise ValueError(f"Payment status must be one of {allowed_statuses}")
         return v
