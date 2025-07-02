@@ -6,6 +6,7 @@ import duckdb
 import pandas as pd
 
 from data.models import MonthlyInvoice
+from utils.helpers import get_last_day_of_month
 
 log = logging.getLogger("TestLogger")
 
@@ -123,7 +124,7 @@ def get_all_in_period(
             f"APP-LOGIC: Attempting to retrieve all invoices for month {month} and year {year}."
         )
         month_begin: datetime.date = datetime.date(year, month, 1)
-        month_end: datetime.date = month_begin + datetime.timedelta(days=31)
+        month_end: datetime.date = get_last_day_of_month(year, month)
         sql = """
             SELECT
                 patient_id,
