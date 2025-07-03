@@ -25,9 +25,8 @@ def schedule_appointment(
     if not selected_datetime and not selected_event:
         raise ValueError("selected_datetime and selected_event must be provided")
 
-    with database.connect(database.MOCK_DB_PATH) as connection:
+    with database.connect(database.DB_PATH) as connection:
         patients: list[Patient] = patient.get_all(connection)
-        print(patients)
         if not patients:
             st.warning("Nenhum paciente cadastrado. Cadastre um paciente primeiro.")
             return

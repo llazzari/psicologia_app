@@ -127,7 +127,7 @@ months_br: list[str] = [
 ]
 st.header("**Controle financeiro**")
 
-with database.connect(database.MOCK_DB_PATH) as connection:
+with database.connect(database.DB_PATH) as connection:
     col1, col2, _ = st.columns([2, 1, 3])
     with col1:
         chosen_month = int(

@@ -79,7 +79,7 @@ def _patient_modal(patient_: Optional[Patient] = None) -> None:
         _, col_rhs = st.columns([2, 3])
         with col_rhs:
             if st.button("Salvar alterações"):
-                with database.connect(database.MOCK_DB_PATH) as connection:
+                with database.connect(database.DB_PATH) as connection:
                     patient.insert(connection, patient_)
                 st.rerun()
 
@@ -146,7 +146,7 @@ st.markdown(
 )
 
 
-with database.connect(database.MOCK_DB_PATH) as connection:
+with database.connect(database.DB_PATH) as connection:
     all_patients: list[Patient] = patient.get_all(connection)
 
 active_patients: list[Patient] = [p for p in all_patients if p.status == "active"]

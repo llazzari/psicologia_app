@@ -1,6 +1,7 @@
 import streamlit as st
 
 from data import database
+from modules import navbar
 
 
 def main():
@@ -12,6 +13,8 @@ def main():
         layout="wide",
         initial_sidebar_state="expanded",
     )
+
+    navbar.render()
 
     st.title("Bem-vindo(a) ao Sistema de Gerenciamento")
 
@@ -29,7 +32,6 @@ def main():
 
     with database.connect(database.DB_PATH) as connection:
         database.initialize(connection)
-        # patient.get_mock(connection)
 
 
 if __name__ == "__main__":

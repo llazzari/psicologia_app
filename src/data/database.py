@@ -6,7 +6,6 @@ from data.appointment import create_appointments_table
 from data.monthly_invoice import create_monthly_invoices_table
 from data.patient import create_patients_table
 
-MOCK_DB_PATH: str = "data/database.db"
 DB_PATH: str = "data/psychologist_app.db"
 
 log = logging.getLogger("TestLogger")

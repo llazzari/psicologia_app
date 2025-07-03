@@ -5,7 +5,7 @@ from typing import Any
 import duckdb
 
 from data import appointment, database
-from data.database import MOCK_DB_PATH
+from data.database import DB_PATH
 from data.models import Appointment
 from utils.helpers import get_week_days
 
@@ -55,15 +55,14 @@ def _turn_weekly_appointments_into_calendar_events(
 
 def get_calendar_events() -> list[dict[str, Any]]:
     """Returns a list of calendar events for a given period."""
-    with database.connect(MOCK_DB_PATH) as connection:
+    with database.connect(DB_PATH) as connection:
         appointments: list[Appointment] = appointment.get_all(connection)
-        print(appointments)
         return _turn_weekly_appointments_into_calendar_events(appointments)
 
 
 def copy_appointments_for_next_week() -> None:
     """Copies all appointments for the current week to the next week."""
-    with database.connect(MOCK_DB_PATH) as connection:
+    with database.connect(DB_PATH) as connection:
         next_week_appointments: list[Appointment] = appointment.get_all(
             connection, period=get_week_days(date.today() + timedelta(days=7))
         )
