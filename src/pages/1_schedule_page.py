@@ -12,7 +12,7 @@ from service.schedule import get_appointment_from, get_calendar_events
 st.set_page_config(
     layout="wide", page_title="Agendamento Semanal", initial_sidebar_state="collapsed"
 )
-st.title("🗓️ Agendamento Semanal")
+st.title("Agendamento Semanal")
 
 navbar.render()
 
@@ -26,7 +26,7 @@ def schedule_appointment(
         raise ValueError("selected_datetime and selected_event must be provided")
 
     with database.connect(database.DB_PATH) as connection:
-        patients: list[Patient] = patient.get_all(connection)
+        patients: list[Patient] = patient.get_all(connection, are_active=True)
         if not patients:
             st.warning("Nenhum paciente cadastrado. Cadastre um paciente primeiro.")
             return
@@ -106,7 +106,7 @@ def schedule_appointment(
             with st.columns([1, 3])[1]:
                 if st.button("Agendar", type="primary"):
                     appointment.insert(connection, appt)
-                    st.success("Consulta agendada!")
+                    st.toast("Consulta agendada!", icon=":material/check:")
                     st.rerun()
 
 
