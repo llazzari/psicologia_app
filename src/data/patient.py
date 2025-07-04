@@ -95,7 +95,9 @@ def get_by_id(connection: duckdb.DuckDBPyConnection, patient_id: UUID) -> Patien
         raise
 
 
-def get_all(connection: duckdb.DuckDBPyConnection) -> list[Patient]:
+def get_all(
+    connection: duckdb.DuckDBPyConnection, are_active: bool = False
+) -> list[Patient]:
     """
     Retrieves all patients from the 'patients' table.
     Returns a list of Pydantic model instances.
@@ -103,6 +105,8 @@ def get_all(connection: duckdb.DuckDBPyConnection) -> list[Patient]:
     try:
         log.info("APP-LOGIC: Attempting to retrieve all patients.")
         sql = "SELECT * FROM patients ORDER BY name, status DESC;"
+        if are_active:
+            sql = "SELECT * FROM patients WHERE status != 'inactive' ORDER BY name, status DESC;"
         results = connection.execute(sql).fetchall()  # type: ignore
 
         if not results:
