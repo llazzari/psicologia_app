@@ -4,9 +4,8 @@ from data import database, patient
 from modules import navbar
 
 
+@st.cache_data()
 def homepage() -> None:
-    navbar.render()
-
     st.title("Bem-vindo(a) ao Sistema de Gerenciamento")
 
     st.markdown("""
@@ -44,6 +43,7 @@ def main():
         if st.button("Login com Google", icon=":material/login:"):
             st.login("google")
     else:
+        navbar.render()
         homepage()
         initialize_database()
 
