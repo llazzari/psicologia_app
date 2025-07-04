@@ -29,7 +29,7 @@ def _get_total(
     return f"R$ {total:,.2f}".replace(",", "-").replace(".", ",").replace("-", ".")
 
 
-def _display_info(
+def _update_invoice_metrics(
     connection: duckdb.DuckDBPyConnection,
     month_invoice: MonthlyInvoice,
     patient_: Patient,
@@ -127,35 +127,33 @@ months_br: list[str] = [
 ]
 st.header("**Controle financeiro**")
 
-with database.connect(database.DB_PATH) as connection:
-    col1, col2, _ = st.columns([2, 1, 3])
-    with col1:
-        chosen_month = int(
-            st.selectbox(
-                "Selecione o mês",
-                options=np.arange(1, 13, 1),
-                index=current_month - 2,  # gets the index of the previous month
-                format_func=lambda x: months_br[x - 1],  # type: ignore
-            )
+col1, col2, _ = st.columns([2, 1, 3])
+with col1:
+    chosen_month = int(
+        st.selectbox(
+            "Selecione o mês",
+            options=np.arange(1, 13, 1),
+            index=current_month - 2,  # gets the index of the previous month
+            format_func=lambda x: months_br[x - 1],  # type: ignore
         )
-    with col2:
-        year_options: list[int] = np.arange(
-            current_year - 5, current_year + 5, 1
-        ).tolist()
-        chosen_year = int(
-            st.selectbox(
-                "Selecione o ano",
-                options=year_options,
-                index=year_options.index(current_year),
-            )
-        )
-
-    monthly_invoices: list[MonthlyInvoice] = monthly_invoice.get_all_in_period(
-        connection, chosen_month, chosen_year
     )
-    with st.container(border=True):
+with col2:
+    year_options: list[int] = np.arange(current_year - 5, current_year + 5, 1).tolist()
+    chosen_year = int(
+        st.selectbox(
+            "Selecione o ano",
+            options=year_options,
+            index=year_options.index(current_year),
+        )
+    )
+
+with st.container(border=True):
+    with database.connect(database.DB_PATH) as connection:
+        monthly_invoices: list[MonthlyInvoice] = monthly_invoice.get_all_in_period(
+            connection, chosen_month, chosen_year
+        )
         if not monthly_invoices:
             st.info("Não há dados para esse mês.")
         for month_invoice in monthly_invoices:
             patient_: Patient = patient.get_by_id(connection, month_invoice.patient_id)
-            _display_info(connection, month_invoice, patient_)
+            _update_invoice_metrics(connection, month_invoice, patient_)
