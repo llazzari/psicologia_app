@@ -1,7 +1,7 @@
 import streamlit as st
 
-from data import database, patient
 from modules import navbar
+from service.database_manager import initialize_database
 
 
 @st.cache_data()
@@ -21,12 +21,6 @@ def homepage() -> None:
                 
     Comece selecionando uma opção no menu ao lado.
     """)
-
-
-def initialize_database() -> None:
-    with database.connect(database.DB_PATH) as connection:
-        database.initialize(connection)
-        st.session_state.all_patients = patient.get_all(connection)
 
 
 def main():

@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 from uuid import UUID
 
 import duckdb
@@ -96,7 +97,9 @@ def get_by_id(connection: duckdb.DuckDBPyConnection, patient_id: UUID) -> Patien
 
 
 def get_all(
-    connection: duckdb.DuckDBPyConnection, are_active: bool = False
+    connection: duckdb.DuckDBPyConnection,
+    are_active: bool = False,
+    status: Optional[str] = None,
 ) -> list[Patient]:
     """
     Retrieves all patients from the 'patients' table.
@@ -105,6 +108,8 @@ def get_all(
     try:
         log.info("APP-LOGIC: Attempting to retrieve all patients.")
         sql = "SELECT * FROM patients ORDER BY name, status DESC;"
+        if status:
+            sql = f"SELECT * FROM patients WHERE status = '{status}' ORDER BY name, status DESC;"
         if are_active:
             sql = "SELECT * FROM patients WHERE status != 'inactive' ORDER BY name, status DESC;"
         results = connection.execute(sql).fetchall()  # type: ignore

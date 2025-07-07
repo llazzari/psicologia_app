@@ -4,9 +4,10 @@ import duckdb
 import numpy as np
 import streamlit as st
 
-from data import database, monthly_invoice, patient
+from data import monthly_invoice, patient
 from data.models import MonthlyInvoice, Patient
 from modules import navbar
+from service.database_manager import get_db_connection
 
 st.set_page_config(
     layout="wide",
@@ -148,12 +149,12 @@ with col2:
     )
 
 with st.container(border=True):
-    with database.connect(database.DB_PATH) as connection:
-        monthly_invoices: list[MonthlyInvoice] = monthly_invoice.get_all_in_period(
-            connection, chosen_month, chosen_year
-        )
-        if not monthly_invoices:
-            st.info("Não há dados para esse mês.")
-        for month_invoice in monthly_invoices:
-            patient_: Patient = patient.get_by_id(connection, month_invoice.patient_id)
-            _update_invoice_metrics(connection, month_invoice, patient_)
+    connection = get_db_connection()
+    monthly_invoices: list[MonthlyInvoice] = monthly_invoice.get_all_in_period(
+        connection, chosen_month, chosen_year
+    )
+    if not monthly_invoices:
+        st.info("Não há dados para esse mês.")
+    for month_invoice in monthly_invoices:
+        patient_: Patient = patient.get_by_id(connection, month_invoice.patient_id)
+        _update_invoice_metrics(connection, month_invoice, patient_)

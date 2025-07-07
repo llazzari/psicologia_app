@@ -4,9 +4,9 @@ from typing import Any
 
 import duckdb
 
-from data import appointment, database
-from data.database import DB_PATH
+from data import appointment
 from data.models import Appointment
+from service.database_manager import get_db_connection
 from utils.helpers import get_week_days
 
 
@@ -55,23 +55,23 @@ def _turn_weekly_appointments_into_calendar_events(
 
 def get_calendar_events() -> list[dict[str, Any]]:
     """Returns a list of calendar events for a given period."""
-    with database.connect(DB_PATH) as connection:
-        appointments: list[Appointment] = appointment.get_all(connection)
-        return _turn_weekly_appointments_into_calendar_events(appointments)
+    connection = get_db_connection()
+    appointments: list[Appointment] = appointment.get_all(connection)
+    return _turn_weekly_appointments_into_calendar_events(appointments)
 
 
 def copy_appointments_for_next_week() -> None:
     """Copies all appointments for the current week to the next week."""
-    with database.connect(DB_PATH) as connection:
-        next_week_appointments: list[Appointment] = appointment.get_all(
-            connection, period=get_week_days(date.today() + timedelta(days=7))
-        )
-        this_week_appointments: list[Appointment] = appointment.get_all(
-            connection, period=get_week_days(date.today())
-        )
-        if next_week_appointments:
-            return
-        for appt in this_week_appointments:
-            appt.id = uuid.uuid4()
-            appt.appointment_date += timedelta(days=7)
-            appointment.insert(connection, appt)
+    connection = get_db_connection()
+    next_week_appointments: list[Appointment] = appointment.get_all(
+        connection, period=get_week_days(date.today() + timedelta(days=7))
+    )
+    this_week_appointments: list[Appointment] = appointment.get_all(
+        connection, period=get_week_days(date.today())
+    )
+    if next_week_appointments:
+        return
+    for appt in this_week_appointments:
+        appt.id = uuid.uuid4()
+        appt.appointment_date += timedelta(days=7)
+        appointment.insert(connection, appt)

@@ -3,14 +3,11 @@ from typing import Optional
 
 import streamlit as st
 
-from data import database, patient
+from data import patient
 from data.models import Patient
 from modules import navbar
-
-st.set_page_config(
-    layout="wide", page_title="Pacientes", initial_sidebar_state="collapsed"
-)
-navbar.render()
+from service.database_manager import get_db_connection
+from service.patient_manager import get_all_patients
 
 
 @st.dialog("Adicionar/editar dados do paciente", width="small")
@@ -79,8 +76,8 @@ def _patient_modal(patient_: Optional[Patient] = None) -> None:
         _, col_rhs = st.columns([2, 3])
         with col_rhs:
             if st.button("Salvar alterações"):
-                with database.connect(database.DB_PATH) as connection:
-                    patient.insert(connection, patient_)
+                connection = get_db_connection()
+                patient.insert(connection, patient_)
                 st.rerun()
 
 
@@ -129,69 +126,80 @@ def _display_patient_info(patient_: Patient):
                 _patient_modal(patient_)
 
 
-st.title("👥 Gerenciamento de Pacientes")
-st.markdown(
-    "Visualize e gerencie todos os pacientes cadastrados, organizados por status."
-)
+def render() -> None:
+    st.set_page_config(
+        layout="wide", page_title="Pacientes", initial_sidebar_state="collapsed"
+    )
+    navbar.render()
 
-st.markdown(
-    """
-<style>
-[data-testid="stMetricValue"] {
-    font-size: 14px;
-}
-</style>
-""",
-    unsafe_allow_html=True,
-)
+    st.title("👥 Gerenciamento de Pacientes")
+    st.markdown(
+        "Visualize e gerencie todos os pacientes cadastrados, organizados por status."
+    )
+
+    st.markdown(
+        """
+    <style>
+    [data-testid="stMetricValue"] {
+        font-size: 14px;
+    }
+    </style>
+    """,
+        unsafe_allow_html=True,
+    )
+
+    all_patients: list[Patient] = get_all_patients()
+
+    active_patients: list[Patient] = [p for p in all_patients if p.status == "active"]
+    testing_patients: list[Patient] = [
+        p for p in all_patients if p.status == "in testing"
+    ]
+    inactive_patients: list[Patient] = [
+        p for p in all_patients if p.status == "inactive"
+    ]
+    leads: list[Patient] = [p for p in all_patients if p.status == "lead"]
+
+    st.divider()
+
+    if st.button("Adicionar paciente", icon=":material/person_add:"):
+        _patient_modal()
+
+    # --- Active Patients List (Expanded by default) ---
+    with st.expander(f"**Pacientes Ativos** ({len(active_patients)})", expanded=True):
+        if not active_patients:
+            st.info("Nenhum paciente ativo no momento.")
+        else:
+            for patient_ in active_patients:
+                _display_patient_info(patient_)
+
+    # --- Patients in Testing List (Expanded by default) ---
+    with st.expander(
+        f"**Pacientes em Avaliação** ({len(testing_patients)})", expanded=True
+    ):
+        if not testing_patients:
+            st.info("Nenhum paciente em processo de avaliação.")
+        else:
+            for patient_ in testing_patients:
+                _display_patient_info(patient_)
+
+    # --- Prospective Patients List (Collapsed by default) ---
+    with st.expander(f"**Prospectos** ({len(leads)})", expanded=False):
+        if not leads:
+            st.info("Nenhum prospecto.")
+        else:
+            for patient_ in leads:
+                _display_patient_info(patient_)
+
+    # --- Inactive Patients List (Collapsed by default) ---
+    with st.expander(
+        f"**Pacientes Inativos** ({len(inactive_patients)})", expanded=False
+    ):
+        if not inactive_patients:
+            st.info("Nenhum paciente inativo.")
+        else:
+            for patient_ in inactive_patients:
+                _display_patient_info(patient_)
 
 
-with database.connect(database.DB_PATH) as connection:
-    all_patients: list[Patient] = patient.get_all(connection)
-
-active_patients: list[Patient] = [p for p in all_patients if p.status == "active"]
-testing_patients: list[Patient] = [p for p in all_patients if p.status == "in testing"]
-inactive_patients: list[Patient] = [p for p in all_patients if p.status == "inactive"]
-leads: list[Patient] = [p for p in all_patients if p.status == "lead"]
-
-st.divider()
-_, col2 = st.columns([4, 1])
-with col2:
-    _, col_rhs = st.columns([1, 4])
-    with col_rhs:
-        if st.button("Adicionar paciente"):
-            _patient_modal()
-
-# --- Active Patients List (Expanded by default) ---
-with st.expander(f"**Pacientes Ativos** ({len(active_patients)})", expanded=True):
-    if not active_patients:
-        st.info("Nenhum paciente ativo no momento.")
-    else:
-        for patient_ in active_patients:
-            _display_patient_info(patient_)
-
-# --- Patients in Testing List (Expanded by default) ---
-with st.expander(
-    f"**Pacientes em Avaliação** ({len(testing_patients)})", expanded=True
-):
-    if not testing_patients:
-        st.info("Nenhum paciente em processo de avaliação.")
-    else:
-        for patient_ in testing_patients:
-            _display_patient_info(patient_)
-
-# --- Prospective Patients List (Collapsed by default) ---
-with st.expander(f"**Prospectos** ({len(leads)})", expanded=False):
-    if not leads:
-        st.info("Nenhum prospecto.")
-    else:
-        for patient_ in leads:
-            _display_patient_info(patient_)
-
-# --- Inactive Patients List (Collapsed by default) ---
-with st.expander(f"**Pacientes Inativos** ({len(inactive_patients)})", expanded=False):
-    if not inactive_patients:
-        st.info("Nenhum paciente inativo.")
-    else:
-        for patient_ in inactive_patients:
-            _display_patient_info(patient_)
+if __name__ == "__main__":
+    render()
