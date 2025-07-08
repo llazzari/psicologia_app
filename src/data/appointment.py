@@ -115,7 +115,11 @@ def get_all(
     """
     try:
         log.info("APP-LOGIC: Attempting to list appointments with patient names.")
-        sql = """SELECT * FROM appointments WHERE status == 'done' AND appointment_date BETWEEN ? AND ?"""
+        sql = """
+        SELECT * FROM appointments 
+        WHERE status == 'done' AND 
+        appointment_date BETWEEN ? AND ?
+        """
 
         if not period:
             today: datetime.date = datetime.date.today()
