@@ -3,11 +3,9 @@ from typing import Optional
 
 import streamlit as st
 
-from data import patient
 from data.models import Patient
 from modules import navbar
-from service.database_manager import get_db_connection
-from service.patient_manager import get_all_patients
+from service.patient_manager import get_all_patients, update_patient_on_db
 
 
 @st.dialog("Adicionar/editar dados do paciente", width="small")
@@ -71,14 +69,9 @@ def _patient_modal(patient_: Optional[Patient] = None) -> None:
                 max_chars=11,
             )
 
-    _, col = st.columns([2, 3])
-    with col:
-        _, col_rhs = st.columns([2, 3])
-        with col_rhs:
-            if st.button("Salvar alterações"):
-                connection = get_db_connection()
-                patient.insert(connection, patient_)
-                st.rerun()
+    if st.button("Salvar alterações"):
+        update_patient_on_db(patient_)
+        st.rerun()
 
 
 def _get_age(birthdate: date | None) -> str:

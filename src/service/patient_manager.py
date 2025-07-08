@@ -1,13 +1,11 @@
-import streamlit as st
-
 from data import patient
 from data.models import Patient
 from service.database_manager import get_db_connection
 
 
-def update_patient_on_db() -> None:
+def update_patient_on_db(patient_: Patient) -> None:
     connection = get_db_connection()
-    patient.insert(connection, st.session_state.patient)
+    patient.insert(connection, patient_)
 
 
 def get_all_patients() -> list[Patient]:
