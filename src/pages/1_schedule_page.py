@@ -144,25 +144,30 @@ custom_css: str = """
     }
 """
 
-# Always get the latest events just before rendering the calendar
-calendar_events: list[dict[str, Any]] = get_calendar_events()
 
-calendar_callback = calendar(
-    events=calendar_events,
-    options=calendar_options,
-    custom_css=custom_css,
-)
+def render() -> None:
+    # Always get the latest events just before rendering the calendar
+    calendar_events: list[dict[str, Any]] = get_calendar_events()
 
-selected_event: dict[str, Any] | None = calendar_callback.get("eventClick", {}).get(
-    "event", None
-)
-selected_datetime_iso: str | None = calendar_callback.get("dateClick", {}).get(
-    "date", None
-)
+    calendar_callback = calendar(
+        events=calendar_events,
+        options=calendar_options,
+        custom_css=custom_css,
+    )
+
+    selected_event: dict[str, Any] | None = calendar_callback.get("eventClick", {}).get(
+        "event", None
+    )
+    selected_datetime_iso: str | None = calendar_callback.get("dateClick", {}).get(
+        "date", None
+    )
+
+    if selected_event:
+        schedule_appointment(selected_event=selected_event)
+    elif selected_datetime_iso:
+        selected_datetime: datetime = datetime.fromisoformat(selected_datetime_iso)
+        schedule_appointment(selected_datetime=selected_datetime)
 
 
-if selected_event:
-    schedule_appointment(selected_event=selected_event)
-elif selected_datetime_iso:
-    selected_datetime: datetime = datetime.fromisoformat(selected_datetime_iso)
-    schedule_appointment(selected_datetime=selected_datetime)
+if __name__ == "__main__":
+    render()
