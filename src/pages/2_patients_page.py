@@ -13,65 +13,69 @@ def _patient_modal(patient_: Optional[Patient] = None) -> None:
     if patient_ is None:
         patient_ = Patient(name="")  # uses default values
 
-    patient_.name = st.text_input("Nome", value=patient_.name)
-    patient_.address = st.text_input("Endereço", value=patient_.address)
+    with st.form("patient_form", border=True):
+        patient_.name = st.text_input("Nome", value=patient_.name)
+        patient_.address = st.text_input("Endereço", value=patient_.address)
 
-    col1, _, col2 = st.columns([2, 1, 2], vertical_alignment="center")
-    with col1:
-        patient_.birthdate = st.date_input(
-            "Data de nascimento",
-            value=patient_.birthdate,
-            format="DD/MM/YYYY",
-            min_value=date(1940, 1, 1),
-            max_value=date.today(),
-        )
-    with col2:
-        patient_.is_child = st.checkbox("Criança/Adolescente", value=patient_.is_child)
-
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        patient_.contact = st.text_input(
-            "Celular",
-            value=patient_.contact,
-            help="Somente números. Ex: 53999999999",
-            max_chars=11,
-        )
-    with col2:
-        patient_.cpf_cnpj = st.text_input(
-            "CPF/CNPJ",
-            value=patient_.cpf_cnpj,
-            help="Somente números. Ex: 12345678910",
-            max_chars=11,
-        )
-    with col3:
-        translated_status: dict[str, str] = {
-            "active": "Ativo",
-            "in testing": "Em avaliação",
-            "lead": "Prospecto",
-            "inactive": "Inativo",
-        }
-        patient_.status = st.selectbox(
-            "Status",
-            options=["active", "in testing", "lead", "inactive"],
-            index=["active", "in testing", "lead", "inactive"].index(patient_.status),
-            format_func=lambda x: translated_status[x],
-        )
-
-    if patient_.is_child:
-        col1, col2 = st.columns([3, 2])
+        col1, _, col2 = st.columns([2, 1, 2], vertical_alignment="center")
         with col1:
-            patient_.school = st.text_input("Escola", value=patient_.school)
+            patient_.birthdate = st.date_input(
+                "Data de nascimento",
+                value=patient_.birthdate,
+                format="DD/MM/YYYY",
+                min_value=date(1940, 1, 1),
+                max_value=date.today(),
+            )
         with col2:
-            patient_.tutor_cpf_cnpj = st.text_input(
-                "CPF/CNPJ do Tutor",
-                value=patient_.tutor_cpf_cnpj,
+            patient_.is_child = st.checkbox(
+                "Criança/Adolescente", value=patient_.is_child
+            )
+
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            patient_.contact = st.text_input(
+                "Celular",
+                value=patient_.contact,
+                help="Somente números. Ex: 53999999999",
+                max_chars=11,
+            )
+        with col2:
+            patient_.cpf_cnpj = st.text_input(
+                "CPF/CNPJ",
+                value=patient_.cpf_cnpj,
                 help="Somente números. Ex: 12345678910",
                 max_chars=11,
             )
+        with col3:
+            translated_status: dict[str, str] = {
+                "active": "Ativo",
+                "in testing": "Em avaliação",
+                "lead": "Prospecto",
+                "inactive": "Inativo",
+            }
+            patient_.status = st.selectbox(
+                "Status",
+                options=PATIENTS_STATUSES,
+                index=PATIENTS_STATUSES.index(patient_.status),
+                format_func=lambda x: translated_status[x],
+            )
 
-    if st.button("Salvar alterações"):
-        update_patient_on_db(patient_)
-        st.rerun()
+        if patient_.is_child:
+            col1, col2 = st.columns([3, 2])
+            with col1:
+                patient_.school = st.text_input("Escola", value=patient_.school)
+            with col2:
+                patient_.tutor_cpf_cnpj = st.text_input(
+                    "CPF/CNPJ do Tutor",
+                    value=patient_.tutor_cpf_cnpj,
+                    help="Somente números. Ex: 12345678910",
+                    max_chars=11,
+                )
+
+        submitted = st.form_submit_button("Salvar alterações")
+        if submitted:
+            update_patient_on_db(patient_)
+            st.rerun()
 
 
 def _get_age(birthdate: date | None) -> str:
@@ -169,7 +173,7 @@ def render() -> None:
             expanded=expanded_status[status],
         ):
             if not patients:
-                st.info("Nenhum paciente encontrado.")
+                st.info("Nenhum paciente encontrado com este status.")
             else:
                 for patient_ in patients:
                     _display_patient_info(patient_)
