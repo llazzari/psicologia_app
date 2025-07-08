@@ -4,7 +4,7 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, field_validator
 
-PATIENTS_STATUSES: tuple[str, ...] = ("active", "inactive", "in testing", "lead")
+PATIENTS_STATUSES: tuple[str, ...] = ("active", "in testing", "lead", "inactive")
 APPOINTMENTS_STATUSES: tuple[str, ...] = ("done", "to recover", "cancelled")
 
 
