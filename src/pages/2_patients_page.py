@@ -78,6 +78,7 @@ def _patient_modal(patient_: Optional[Patient] = None) -> None:
             st.rerun()
 
 
+@st.cache_data
 def _get_age(birthdate: date | None) -> str:
     """
     Calculates the age of a patient based on their birthdate.
