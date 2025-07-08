@@ -4,6 +4,9 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, field_validator
 
+PATIENTS_STATUSES: tuple[str, ...] = ("active", "inactive", "in testing", "lead")
+APPOINTMENTS_STATUSES: tuple[str, ...] = ("done", "to recover", "cancelled")
+
 
 class Patient(BaseModel):
     """
@@ -31,9 +34,8 @@ class Patient(BaseModel):
     @classmethod
     def check_status_value(cls, v: str) -> str:
         """Ensures status has a valid value."""
-        allowed_statuses: set[str] = {"active", "inactive", "in testing", "lead"}
-        if v not in allowed_statuses:
-            raise ValueError(f"Status must be one of {allowed_statuses}")
+        if v not in PATIENTS_STATUSES:
+            raise ValueError(f"Status must be one of {PATIENTS_STATUSES}")
         return v
 
     @field_validator("contact", "cpf_cnpj", "tutor_cpf_cnpj")

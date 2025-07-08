@@ -3,7 +3,7 @@ from typing import Optional
 
 import streamlit as st
 
-from data.models import Patient
+from data.models import PATIENTS_STATUSES, Patient
 from modules import navbar
 from service.patient_manager import get_all_patients, update_patient_on_db
 
@@ -120,6 +120,18 @@ def _display_patient_info(patient_: Patient):
 
 
 def render() -> None:
+    translated_status: dict[str, str] = {
+        "active": "ativos",
+        "in testing": "em avaliação",
+        "lead": "em potencial",
+        "inactive": "inativos",
+    }
+    expanded_status: dict[str, bool] = {
+        "active": True,
+        "in testing": True,
+        "lead": False,
+        "inactive": False,
+    }
     st.set_page_config(
         layout="wide", page_title="Pacientes", initial_sidebar_state="collapsed"
     )
@@ -141,57 +153,26 @@ def render() -> None:
         unsafe_allow_html=True,
     )
 
-    all_patients: list[Patient] = get_all_patients()
-
-    active_patients: list[Patient] = [p for p in all_patients if p.status == "active"]
-    testing_patients: list[Patient] = [
-        p for p in all_patients if p.status == "in testing"
-    ]
-    inactive_patients: list[Patient] = [
-        p for p in all_patients if p.status == "inactive"
-    ]
-    leads: list[Patient] = [p for p in all_patients if p.status == "lead"]
-
     st.divider()
 
     if st.button("Adicionar paciente", icon=":material/person_add:"):
         _patient_modal()
 
-    # --- Active Patients List (Expanded by default) ---
-    with st.expander(f"**Pacientes Ativos** ({len(active_patients)})", expanded=True):
-        if not active_patients:
-            st.info("Nenhum paciente ativo no momento.")
-        else:
-            for patient_ in active_patients:
-                _display_patient_info(patient_)
+    all_patients: list[Patient] = get_all_patients()
 
-    # --- Patients in Testing List (Expanded by default) ---
-    with st.expander(
-        f"**Pacientes em Avaliação** ({len(testing_patients)})", expanded=True
-    ):
-        if not testing_patients:
-            st.info("Nenhum paciente em processo de avaliação.")
-        else:
-            for patient_ in testing_patients:
-                _display_patient_info(patient_)
-
-    # --- Prospective Patients List (Collapsed by default) ---
-    with st.expander(f"**Prospectos** ({len(leads)})", expanded=False):
-        if not leads:
-            st.info("Nenhum prospecto.")
-        else:
-            for patient_ in leads:
-                _display_patient_info(patient_)
-
-    # --- Inactive Patients List (Collapsed by default) ---
-    with st.expander(
-        f"**Pacientes Inativos** ({len(inactive_patients)})", expanded=False
-    ):
-        if not inactive_patients:
-            st.info("Nenhum paciente inativo.")
-        else:
-            for patient_ in inactive_patients:
-                _display_patient_info(patient_)
+    for status in PATIENTS_STATUSES:
+        patients: list[Patient] = [
+            patient for patient in all_patients if patient.status == status
+        ]
+        with st.expander(
+            f"**Pacientes {translated_status[status]}** ({len(patients)})",
+            expanded=expanded_status[status],
+        ):
+            if not patients:
+                st.info("Nenhum paciente encontrado.")
+            else:
+                for patient_ in patients:
+                    _display_patient_info(patient_)
 
 
 if __name__ == "__main__":
