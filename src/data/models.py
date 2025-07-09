@@ -42,8 +42,9 @@ class Patient(BaseModel):
     school: Optional[str] = None
     tutor_cpf_cnpj: Optional[str] = None
     status: PatientStatus = PatientStatus.ACTIVE
+    contract: Optional[str] = None
 
-    @field_validator("contact", "cpf_cnpj", "tutor_cpf_cnpj")
+    @field_validator("contact", "cpf_cnpj", "tutor_cpf_cnpj", "contract")
     @classmethod
     def check_contact_value(cls, v: Optional[str]) -> Optional[str]:
         """Ensures contact has a valid value."""
@@ -94,6 +95,21 @@ class Appointment(BaseModel):
         from_attributes = True
 
 
+class MonthlyInvoiceStatus(str, Enum):
+    PENDING = "pending"
+    PAID = "paid"
+    OVERDUE = "overdue"
+    WAIVED = "waived"
+
+
+MONTHLY_INVOICE_STATUS_PT: dict[str, str] = {
+    MonthlyInvoiceStatus.PENDING: "pendente",
+    MonthlyInvoiceStatus.PAID: "pago",
+    MonthlyInvoiceStatus.OVERDUE: "vencido",
+    MonthlyInvoiceStatus.WAIVED: "cancelado",
+}
+
+
 class MonthlyInvoice(BaseModel):
     """
     Pydantic model for a patient's monthly invoice.
@@ -108,18 +124,9 @@ class MonthlyInvoice(BaseModel):
     sessions_completed: int = Field(default=0, ge=0)
     sessions_to_recover: int = Field(default=0, ge=0)
     free_sessions: int = Field(default=0, ge=0)
-    payment_status: str = "pending"  # one of 'pending', 'paid', 'overdue', 'waived'
+    payment_status: MonthlyInvoiceStatus = MonthlyInvoiceStatus.PENDING
     nf_number: Optional[int] = None
     payment_date: Optional[date] = None
-
-    @field_validator("payment_status")
-    @classmethod
-    def check_payment_status(cls, v: str) -> str:
-        """Ensures payment_status has a valid value."""
-        allowed_statuses: set[str] = {"pending", "paid", "overdue", "waived"}
-        if v not in allowed_statuses:
-            raise ValueError(f"Payment status must be one of {allowed_statuses}")
-        return v
 
     class ConfigDict:
         """Pydantic configuration options."""
