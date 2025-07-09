@@ -25,7 +25,7 @@ def create_appointments_table(connection: duckdb.DuckDBPyConnection) -> None:
             duration INTEGER DEFAULT 45 NOT NULL, -- in minutes
             is_free_of_charge BOOLEAN DEFAULT FALSE NOT NULL,
             notes VARCHAR DEFAULT '' NOT NULL,
-            status VARCHAR CHECK (status IN ('done', 'to recover')) DEFAULT 'done' NOT NULL
+            status VARCHAR CHECK (status IN ('done', 'to recover', 'cancelled')) DEFAULT 'done' NOT NULL
         );
         """
         connection.execute(sql_command)
