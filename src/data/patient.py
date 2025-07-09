@@ -26,6 +26,7 @@ def create_patients_table(connection: duckdb.DuckDBPyConnection) -> None:
             school VARCHAR, 
             tutor_cpf_cnpj VARCHAR,
             status VARCHAR CHECK (status IN ('active', 'inactive', 'in testing', 'lead')) DEFAULT 'active' NOT NULL,
+            contract VARCHAR,
         );
         """
         connection.execute(sql_command)
@@ -58,7 +59,8 @@ def insert(connection: duckdb.DuckDBPyConnection, patient: Patient) -> None:
             cpf_cnpj, 
             school, 
             tutor_cpf_cnpj, 
-            status
+            status,
+            contract
         FROM patient_df
         """
         connection.execute(sql)
