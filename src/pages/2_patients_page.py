@@ -3,7 +3,7 @@ from typing import Optional
 
 import streamlit as st
 
-from data.models import PATIENTS_STATUSES, Patient
+from data.models import PATIENT_STATUS_PT, Patient, PatientStatus
 from modules import navbar
 from service.patient_manager import get_all_patients, update_patient_on_db
 
@@ -13,7 +13,7 @@ def _patient_modal(patient_: Optional[Patient] = None) -> None:
     if patient_ is None:
         patient_ = Patient(name="")  # uses default values
 
-    with st.form("patient_form", border=True):
+    with st.form("patient_form", border=False):
         patient_.name = st.text_input("Nome", value=patient_.name)
         patient_.address = st.text_input("Endereço", value=patient_.address)
 
@@ -55,8 +55,10 @@ def _patient_modal(patient_: Optional[Patient] = None) -> None:
             }
             patient_.status = st.selectbox(
                 "Status",
-                options=PATIENTS_STATUSES,
-                index=PATIENTS_STATUSES.index(patient_.status),
+                options=PatientStatus,
+                index=list(PatientStatus).index(
+                    patient_.status
+                ),  # transforms Enum to list and selects the index
                 format_func=lambda x: translated_status[x],
             )
 
@@ -120,22 +122,21 @@ def _display_patient_info(patient_: Patient):
         with col3:
             st.metric(label="Idade", value=_get_age(patient_.birthdate))
         with col4:
-            if st.button("Editar", key=f"edit_{patient_.id}"):
+            if st.button(
+                "Editar",
+                key=f"edit_{patient_.id}",
+                icon=":material/person_edit:",
+                help="Editar dados do paciente",
+            ):
                 _patient_modal(patient_)
 
 
 def render() -> None:
-    translated_status: dict[str, str] = {
-        "active": "ativos",
-        "in testing": "em avaliação",
-        "lead": "em potencial",
-        "inactive": "inativos",
-    }
-    expanded_status: dict[str, bool] = {
-        "active": True,
-        "in testing": True,
-        "lead": False,
-        "inactive": False,
+    expanded_status: dict[PatientStatus, bool] = {
+        PatientStatus.ACTIVE: True,
+        PatientStatus.IN_TESTING: True,
+        PatientStatus.LEAD: False,
+        PatientStatus.INACTIVE: False,
     }
     st.set_page_config(
         layout="wide", page_title="Pacientes", initial_sidebar_state="collapsed"
@@ -165,12 +166,12 @@ def render() -> None:
 
     all_patients: list[Patient] = get_all_patients()
 
-    for status in PATIENTS_STATUSES:
+    for status in PatientStatus:
         patients: list[Patient] = [
             patient for patient in all_patients if patient.status == status
         ]
         with st.expander(
-            f"**Pacientes {translated_status[status]}** ({len(patients)})",
+            f"**Pacientes {PATIENT_STATUS_PT[status]}** ({len(patients)})",
             expanded=expanded_status[status],
         ):
             if not patients:
