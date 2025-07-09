@@ -1,5 +1,5 @@
 import logging
-from typing import Optional
+from typing import Any, Optional
 from uuid import UUID
 
 import duckdb
@@ -96,6 +96,10 @@ def get_by_id(connection: duckdb.DuckDBPyConnection, patient_id: UUID) -> Patien
         raise
 
 
+def _make_patient_from_(row: tuple[Any, ...]) -> Patient:
+    return Patient(**{k: v for k, v in zip(Patient.model_fields.keys(), row)})
+
+
 def get_all(
     connection: duckdb.DuckDBPyConnection,
     are_active: bool = False,
@@ -118,10 +122,7 @@ def get_all(
             log.warning("APP-LOGIC: No patients found in the database.")
             return []
 
-        patients = [
-            Patient(**{k: v for k, v in zip(Patient.model_fields.keys(), row)})  # type: ignore
-            for row in results
-        ]
+        patients: list[Patient] = [_make_patient_from_(row) for row in results]
         log.info(f"APP-LOGIC: Successfully retrieved {len(patients)} patients.")
         return patients
     except Exception:
