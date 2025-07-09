@@ -2,17 +2,17 @@ import uuid
 from datetime import date, datetime, timedelta
 from typing import Any
 
-import duckdb
+import streamlit as st
 
-from data import appointment
-from data.models import Appointment
+from data import appointment, patient
+from data.models import Appointment, Patient
 from service.database_manager import get_db_connection
 from utils.helpers import get_week_days
 
 
-def get_appointment_from(
-    connection: duckdb.DuckDBPyConnection, selected_event: dict[str, Any]
-) -> Appointment:
+@st.cache_data(ttl=3600)
+def get_appointment_from(selected_event: dict[str, Any]) -> Appointment:
+    connection = get_db_connection()
     event_id: uuid.UUID = get_id_from_event(selected_event)
     return appointment.get_by_id(connection, event_id)
 
@@ -24,6 +24,7 @@ def get_id_from_event(selected_event: dict[str, Any]) -> uuid.UUID:
     return uuid.UUID(event_id)
 
 
+@st.cache_data(hash_funcs={Appointment: lambda a: a.id}, ttl=3600)
 def _turn_weekly_appointments_into_calendar_events(
     appointments: list[Appointment],
 ) -> list[dict[str, Any]]:
@@ -31,6 +32,7 @@ def _turn_weekly_appointments_into_calendar_events(
     Converts a list of Appointment objects into a format suitable for the calendar.
     """
 
+    @st.cache_data(hash_funcs={Appointment: lambda a: a.id}, ttl=3600)
     def _turn_appointment_into_event(appt: Appointment) -> dict[str, Any]:
         """
         Converts a single Appointment object into a calendar event dictionary.
@@ -75,3 +77,13 @@ def copy_appointments_for_next_week() -> None:
         appt.id = uuid.uuid4()
         appt.appointment_date += timedelta(days=7)
         appointment.insert(connection, appt)
+
+
+def get_patients() -> list[Patient] | None:
+    connection = get_db_connection()
+    return patient.get_all(connection, are_active=True)
+
+
+def update_appointment(appt: Appointment) -> None:
+    connection = get_db_connection()
+    appointment.insert(connection, appt)
