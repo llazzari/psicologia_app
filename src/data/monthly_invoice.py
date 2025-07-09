@@ -129,7 +129,12 @@ def get_all_in_period(
             SELECT
                 patient_id,
                 -- Conta condicionalmente as sessões com status 'done'
-                COUNT(CASE WHEN status = 'done' THEN 1 END) AS sessions_completed,
+                -- COUNT(CASE WHEN status = 'done' THEN 1 END) AS sessions_completed,
+                CAST(
+                    COALESCE(
+                        SUM(CASE WHEN status = 'done' AND is_free_of_charge = false THEN duration / 45.0 ELSE 0 END), 
+                    0)
+                AS INTEGER) AS sessions_completed,
                 -- Conta condicionalmente as sessões com status 'to recover'
                 COUNT(CASE WHEN status = 'to recover' THEN 1 END) AS sessions_to_recover,
                  -- CONTA SEPARADAMENTE AS SESSÕES GRATUITAS
