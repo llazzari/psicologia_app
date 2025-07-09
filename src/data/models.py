@@ -1,11 +1,24 @@
 from datetime import date, datetime, time
+from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, field_validator
 
-PATIENTS_STATUSES: tuple[str, ...] = ("active", "in testing", "lead", "inactive")
-APPOINTMENTS_STATUSES: tuple[str, ...] = ("done", "to recover", "cancelled")
+
+class PatientStatus(str, Enum):
+    ACTIVE = "active"
+    IN_TESTING = "in testing"
+    LEAD = "lead"
+    INACTIVE = "inactive"
+
+
+PATIENT_STATUS_PT: dict[PatientStatus, str] = {
+    PatientStatus.ACTIVE: "ativos",
+    PatientStatus.IN_TESTING: "em avaliação",
+    PatientStatus.LEAD: "em potencial",
+    PatientStatus.INACTIVE: "inativos",
+}
 
 
 class Patient(BaseModel):
@@ -28,15 +41,7 @@ class Patient(BaseModel):
 
     school: Optional[str] = None
     tutor_cpf_cnpj: Optional[str] = None
-    status: str = "active"
-
-    @field_validator("status")
-    @classmethod
-    def check_status_value(cls, v: str) -> str:
-        """Ensures status has a valid value."""
-        if v not in PATIENTS_STATUSES:
-            raise ValueError(f"Status must be one of {PATIENTS_STATUSES}")
-        return v
+    status: PatientStatus = PatientStatus.ACTIVE
 
     @field_validator("contact", "cpf_cnpj", "tutor_cpf_cnpj")
     @classmethod
@@ -55,6 +60,19 @@ class Patient(BaseModel):
         from_attributes = True
 
 
+class AppointmentStatus(str, Enum):
+    DONE = "done"
+    TO_RECOVER = "to recover"
+    CANCELLED = "cancelled"
+
+
+APPOINTMENT_STATUS_PT: dict[str, str] = {
+    AppointmentStatus.DONE: "realizadas",
+    AppointmentStatus.TO_RECOVER: "a recuperar",
+    AppointmentStatus.CANCELLED: "canceladas",
+}
+
+
 class Appointment(BaseModel):
     """
     Pydantic model for an individual appointment/session.
@@ -68,16 +86,7 @@ class Appointment(BaseModel):
     duration: int = 45  # in minutes
     is_free_of_charge: bool = False
     notes: str = ""
-    status: str = "done"
-
-    @field_validator("status")
-    @classmethod
-    def check_status_value(cls, v: str) -> str:
-        """Ensures status has a valid value."""
-        allowed_statuses: set[str] = {"done", "to recover"}
-        if v not in allowed_statuses:
-            raise ValueError(f"Status must be one of {allowed_statuses}")
-        return v
+    status: AppointmentStatus = AppointmentStatus.DONE
 
     class ConfigDict:
         """Pydantic configuration options."""
