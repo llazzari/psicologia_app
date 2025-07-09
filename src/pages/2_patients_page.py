@@ -74,6 +74,13 @@ def _patient_modal(patient_: Optional[Patient] = None) -> None:
                     max_chars=11,
                 )
 
+        patient_.contract = st.text_input(
+            "CNPJ convênio",
+            value=patient_.contract,
+            help="Somente números. Ex: 12345678910",
+            max_chars=11,
+        )
+
         submitted = st.form_submit_button("Salvar alterações")
         if submitted:
             update_patient_on_db(patient_)
@@ -112,15 +119,13 @@ def _display_patient_info(patient_: Patient):
             st.markdown(f"**{patient_.name.strip()}**")
             if patient_.is_child:
                 st.caption("Criança/Adolescente")
-        with col2:
-            st.metric(
-                label="Nascimento",
-                value=patient_.birthdate.strftime("%d/%m/%Y")
-                if patient_.birthdate
-                else "N/A",
-            )
-        with col3:
-            st.metric(label="Idade", value=_get_age(patient_.birthdate))
+        col2.metric(
+            label="Nascimento",
+            value=patient_.birthdate.strftime("%d/%m/%Y")
+            if patient_.birthdate
+            else "N/A",
+        )
+        col3.metric(label="Idade", value=_get_age(patient_.birthdate))
         with col4:
             if st.button(
                 "Editar",
@@ -143,7 +148,7 @@ def render() -> None:
     )
     navbar.render()
 
-    st.title("👥 Gerenciamento de Pacientes")
+    st.title("Gerenciamento de Pacientes")
     st.markdown(
         "Visualize e gerencie todos os pacientes cadastrados, organizados por status."
     )
