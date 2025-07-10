@@ -84,6 +84,7 @@ def _patient_modal(patient_: Optional[Patient] = None) -> None:
         submitted = st.form_submit_button("Salvar alterações")
         if submitted:
             update_patient_on_db(patient_)
+            st.session_state["all_patients"] = get_all_patients()
             st.rerun()
 
 
@@ -114,7 +115,9 @@ def _display_patient_info(patient_: Patient):
     Displays the information for a single patient in a consistent format.
     """
     with st.container(border=True):
-        col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
+        col1, col2, col3, col4, col5 = st.columns(
+            [2, 1, 1, 1, 1], vertical_alignment="center"
+        )
         with col1:
             st.markdown(f"**{patient_.name.strip()}**")
             if patient_.is_child:
@@ -128,6 +131,16 @@ def _display_patient_info(patient_: Patient):
         col3.metric(label="Idade", value=_get_age(patient_.birthdate))
         with col4:
             if st.button(
+                "Ver documentos",
+                key=f"view_{patient_.id}",
+                icon=":material/docs:",
+            ):
+                st.query_params.update({"patient_id": f"{patient_.id}"})
+                st.session_state["patient"] = patient_
+                st.rerun()
+
+        with col5:
+            if st.button(
                 "Editar",
                 key=f"edit_{patient_.id}",
                 icon=":material/person_edit:",
@@ -136,18 +149,33 @@ def _display_patient_info(patient_: Patient):
                 _patient_modal(patient_)
 
 
-def render() -> None:
+def _display_patients():
     expanded_status: dict[PatientStatus, bool] = {
         PatientStatus.ACTIVE: True,
         PatientStatus.IN_TESTING: True,
         PatientStatus.LEAD: False,
         PatientStatus.INACTIVE: False,
     }
-    st.set_page_config(
-        layout="wide", page_title="Pacientes", initial_sidebar_state="collapsed"
-    )
-    navbar.render()
 
+    all_patients = st.session_state["all_patients"]
+
+    def group_patients_by_status(status: str) -> list[Patient]:
+        return [patient for patient in all_patients if patient.status == status]
+
+    for status in PatientStatus:
+        patients: list[Patient] = group_patients_by_status(status)
+        with st.expander(
+            f"**Pacientes {PATIENT_STATUS_PT[status]}** ({len(patients)})",
+            expanded=expanded_status[status],
+        ):
+            if not patients:
+                st.info("Nenhum paciente encontrado com este status.")
+            else:
+                for patient_ in patients:
+                    _display_patient_info(patient_)
+
+
+def display_patients_list() -> None:
     st.title("Gerenciamento de Pacientes")
     st.markdown(
         "Visualize e gerencie todos os pacientes cadastrados, organizados por status."
@@ -166,25 +194,54 @@ def render() -> None:
 
     st.divider()
 
+    if "all_patients" not in st.session_state:
+        st.session_state["all_patients"] = get_all_patients()
+
     if st.button("Adicionar paciente", icon=":material/person_add:"):
         _patient_modal()
 
-    all_patients: list[Patient] = get_all_patients()
+    _display_patients()
 
-    for status in PatientStatus:
-        patients: list[Patient] = [
-            patient for patient in all_patients if patient.status == status
-        ]
-        with st.expander(
-            f"**Pacientes {PATIENT_STATUS_PT[status]}** ({len(patients)})",
-            expanded=expanded_status[status],
+
+def display_patient_docs() -> None:
+    patient_ = st.session_state["patient"]
+
+    st.title(f"Documentos de {patient_.name.strip()}")
+    if st.button("Voltar para a lista de pacientes", icon=":material/arrow_back:"):
+        st.query_params.pop("patient_id")
+        st.session_state.pop("patient")
+        st.rerun()
+    st.divider()
+
+    col_input, col_btn, col_output = st.columns([3, 1, 3], vertical_alignment="center")
+    with col_input:
+        st.text_area(
+            "Observações",
+            key=f"observations_{patient_.id}",
+            height=200,
+        )
+    with col_btn:
+        if st.button(
+            "Gerar prontuário",
+            key=f"AI_{patient_.id}",
+            icon=":material/text_fields_alt:",
         ):
-            if not patients:
-                st.info("Nenhum paciente encontrado com este status.")
-            else:
-                for patient_ in patients:
-                    _display_patient_info(patient_)
+            pass
+    with col_output:
+        st.text_area("Prontuário gerado por IA", height=200)
+
+
+def main() -> None:
+    st.set_page_config(
+        layout="wide", page_title="Pacientes", initial_sidebar_state="collapsed"
+    )
+    navbar.render()
+
+    if "patient_id" in st.query_params:
+        display_patient_docs()
+    else:
+        display_patients_list()
 
 
 if __name__ == "__main__":
-    render()
+    main()
