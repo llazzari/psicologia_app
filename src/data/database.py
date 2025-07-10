@@ -3,6 +3,7 @@ import logging
 import duckdb
 
 from data.appointment import create_appointments_table
+from data.documents import create_documents_table
 from data.monthly_invoice import create_monthly_invoices_table
 from data.patient import create_patients_table
 
@@ -50,5 +51,6 @@ def initialize(connection: duckdb.DuckDBPyConnection) -> None:
     create_patients_table(connection)
     create_appointments_table(connection)
     create_monthly_invoices_table(connection)
+    create_documents_table(connection)
 
     log.info("APP-LOGIC: Database schema initialized successfully.")

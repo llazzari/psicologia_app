@@ -3,7 +3,7 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 
 
 class PatientStatus(str, Enum):
@@ -43,14 +43,6 @@ class Patient(BaseModel):
     tutor_cpf_cnpj: Optional[str] = None
     status: PatientStatus = PatientStatus.ACTIVE
     contract: Optional[str] = None
-
-    @field_validator("contact", "cpf_cnpj", "tutor_cpf_cnpj", "contract")
-    @classmethod
-    def check_contact_value(cls, v: Optional[str]) -> Optional[str]:
-        """Ensures contact has a valid value."""
-        if v is not None and len(v) != 11:
-            raise ValueError("Contact must be 11 digits")
-        return v
 
     class ConfigDict:
         """
@@ -127,6 +119,39 @@ class MonthlyInvoice(BaseModel):
     payment_status: MonthlyInvoiceStatus = MonthlyInvoiceStatus.PENDING
     nf_number: Optional[int] = None
     payment_date: Optional[date] = None
+
+    class ConfigDict:
+        """Pydantic configuration options."""
+
+        from_attributes = True
+
+
+class DocumentCategory(str, Enum):
+    PRONTUARY = "prontuary"
+    PSYCHOLOGICAL_REPORT = "psychological report"
+    PSYCHOLOGICAL_OPINION = "psychological opinion"
+    APPRAISAL = "appraisal"  # laudo
+    DECLARATION = "declaration"
+    BUDGET = "budget"
+    OTHER = "other"
+
+
+DOCUMENT_CATEGORY_PT: dict[DocumentCategory, str] = {
+    DocumentCategory.PRONTUARY: "prontuário",
+    DocumentCategory.PSYCHOLOGICAL_REPORT: "relatório psicológico",
+    DocumentCategory.PSYCHOLOGICAL_OPINION: "opinião psicológica",
+    DocumentCategory.APPRAISAL: "laudo",
+    DocumentCategory.DECLARATION: "declaração",
+    DocumentCategory.BUDGET: "orçamento",
+    DocumentCategory.OTHER: "outro",
+}
+
+
+class Document(BaseModel):
+    id: UUID = Field(default_factory=uuid4)
+    patient_id: UUID
+    category: DocumentCategory = DocumentCategory.PRONTUARY
+    file_name: str = ""
 
     class ConfigDict:
         """Pydantic configuration options."""
