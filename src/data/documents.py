@@ -20,7 +20,8 @@ def create_documents_table(db_connection: duckdb.DuckDBPyConnection) -> None:
                 id UUID PRIMARY KEY,
                 patient_id UUID,
                 category VARCHAR,
-                file_name VARCHAR
+                file_name VARCHAR,
+                content TEXT
             )
             """
         )
@@ -34,7 +35,7 @@ def insert(connection: duckdb.DuckDBPyConnection, document: Document) -> None:
     try:
         log.info(f"Inserting document: {document}")
         connection.execute(
-            "INSERT INTO OR REPLACE documents VALUES (?, ?, ?, ?)",
+            "INSERT INTO OR REPLACE documents VALUES (?, ?, ?, ?, ?)",
             document.model_dump().values(),
         )
         log.info("Inserted document.")

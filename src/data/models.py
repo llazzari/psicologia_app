@@ -128,8 +128,8 @@ class MonthlyInvoice(BaseModel):
 
 class DocumentCategory(str, Enum):
     PRONTUARY = "prontuary"
-    PSYCHOLOGICAL_REPORT = "psychological report"
-    PSYCHOLOGICAL_OPINION = "psychological opinion"
+    PSYCHOLOGICAL_REPORT = "psychological_report"
+    PSYCHOLOGICAL_OPINION = "psychological_opinion"
     APPRAISAL = "appraisal"  # laudo
     DECLARATION = "declaration"
     BUDGET = "budget"
@@ -152,6 +152,7 @@ class Document(BaseModel):
     patient_id: UUID
     category: DocumentCategory = DocumentCategory.PRONTUARY
     file_name: str = ""
+    content: str = ""
 
     class ConfigDict:
         """Pydantic configuration options."""
