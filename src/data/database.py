@@ -6,6 +6,7 @@ from data.appointment import create_appointments_table
 from data.documents import create_documents_table
 from data.monthly_invoice import create_monthly_invoices_table
 from data.patient import create_patients_table
+from data.psychologist_settings import create_psychologist_settings_table
 
 DB_PATH: str = "data/psychologist_app.db"
 
@@ -52,5 +53,6 @@ def initialize(connection: duckdb.DuckDBPyConnection) -> None:
     create_appointments_table(connection)
     create_monthly_invoices_table(connection)
     create_documents_table(connection)
+    create_psychologist_settings_table(connection)
 
     log.info("APP-LOGIC: Database schema initialized successfully.")

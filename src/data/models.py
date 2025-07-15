@@ -112,7 +112,9 @@ class MonthlyInvoice(BaseModel):
     invoice_month: int = Field(ge=1, le=12)
     invoice_year: int
     appointment_dates: list[date] = Field(default_factory=list)  # type: ignore
-    session_price: int = Field(default=23000, ge=0)  # in cents
+    session_price: int = Field(
+        default=23000, ge=0, description="The session price in cents."
+    )
     sessions_completed: int = Field(default=0, ge=0)
     sessions_to_recover: int = Field(default=0, ge=0)
     free_sessions: int = Field(default=0, ge=0)
@@ -130,7 +132,8 @@ class DocumentCategory(str, Enum):
     PRONTUARY = "prontuary"
     PSYCHOLOGICAL_REPORT = "psychological_report"
     PSYCHOLOGICAL_OPINION = "psychological_opinion"
-    APPRAISAL = "appraisal"  # laudo
+    # APPRAISAL = "appraisal"  # laudo
+    ANAMNESIS = "anamnesis"
     DECLARATION = "declaration"
     BUDGET = "budget"
     OTHER = "other"
@@ -140,19 +143,47 @@ DOCUMENT_CATEGORY_PT: dict[DocumentCategory, str] = {
     DocumentCategory.PRONTUARY: "prontuário",
     DocumentCategory.PSYCHOLOGICAL_REPORT: "relatório psicológico",
     DocumentCategory.PSYCHOLOGICAL_OPINION: "opinião psicológica",
-    DocumentCategory.APPRAISAL: "laudo",
+    # DocumentCategory.APPRAISAL: "laudo",
+    DocumentCategory.ANAMNESIS: "anamnese",
     DocumentCategory.DECLARATION: "declaração",
     DocumentCategory.BUDGET: "orçamento",
     DocumentCategory.OTHER: "outro",
 }
 
 
+class DocumentContent(BaseModel):
+    content: str = Field(default="", description="The psychological document content.")
+
+
 class Document(BaseModel):
-    id: UUID = Field(default_factory=uuid4)
-    patient_id: UUID
-    category: DocumentCategory = DocumentCategory.PRONTUARY
-    file_name: str = ""
-    content: str = ""
+    id: UUID = Field(default_factory=uuid4, description="The document ID.")
+    patient_id: UUID = Field(description="The patient ID.")
+    category: DocumentCategory = Field(
+        default=DocumentCategory.PRONTUARY, description="The document category."
+    )
+    file_name: str = Field(default="", description="The document name.")
+    content: DocumentContent = Field(
+        default=DocumentContent(content=""), description="The document content."
+    )
+
+    class ConfigDict:
+        """Pydantic configuration options."""
+
+        from_attributes = True
+
+
+class PsychologistSettings(BaseModel):
+    """
+    Pydantic model for a psychologist's settings.
+    """
+
+    user_email: str = Field(description="The psychologist's Google email address.")
+    psychologist_name: str = ""
+    crp: Optional[str] = None
+    default_session_price: int = Field(
+        default=23000, ge=0, description="The default session price in cents."
+    )
+    logo_path: Optional[str] = None
 
     class ConfigDict:
         """Pydantic configuration options."""
