@@ -8,9 +8,6 @@ def render() -> None:
     with st.sidebar:
         st.page_link("main.py", label="Página Inicial", icon=":material/home:")
 
-        st.markdown("## Usuário Logado")
-        st.page_link("pages/logout.py", label="Logout", icon=":material/logout:")
-
         st.markdown("## Gerenciamento")
 
         st.page_link(
@@ -28,3 +25,13 @@ def render() -> None:
             label="Controle Financeiro",
             icon=":material/attach_money:",
         )
+
+        st.markdown("## Usuário Logado")
+
+        st.page_link("pages/logout.py", label="Logout", icon=":material/logout:")
+        st.page_link(
+            "pages/settings_page.py", label="Configurações", icon=":material/settings:"
+        )
+
+
+# !FIXME when documents are open, the patients page in the sidebar does not clean the URL
