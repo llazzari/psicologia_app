@@ -35,7 +35,7 @@ def insert(connection: duckdb.DuckDBPyConnection, document: Document) -> None:
     try:
         log.info(f"Inserting document: {document}")
         connection.execute(
-            "INSERT INTO OR REPLACE documents VALUES (?, ?, ?, ?, ?)",
+            "INSERT OR REPLACE INTO documents VALUES (?, ?, ?, ?, ?)",
             document.model_dump().values(),
         )
         log.info("Inserted document.")
