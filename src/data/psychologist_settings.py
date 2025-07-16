@@ -15,11 +15,12 @@ def create_psychologist_settings_table(connection: duckdb.DuckDBPyConnection) ->
         )
         sql_command = """
         CREATE TABLE IF NOT EXISTS psychologist_settings (
-            id UUID PRIMARY KEY, 
-            user_email VARCHAR NOT NULL,
+            user_email VARCHAR NOT NULL PRIMARY KEY,
             psychologist_name VARCHAR NOT NULL,
             crp VARCHAR,
             default_session_price INTEGER NOT NULL,
+            default_evaluation_price INTEGER NOT NULL,
+            default_session_duration INTEGER NOT NULL,
             logo_path VARCHAR
         );
         """
@@ -38,7 +39,7 @@ def insert(
     try:
         log.info(f"Inserting psychologist settings: {psychologist_settings}")
         connection.execute(
-            "INSERT OR REPLACE INTO psychologist_settings VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT OR REPLACE INTO psychologist_settings VALUES (?, ?, ?, ?, ?, ?, ?)",
             psychologist_settings.model_dump().values(),
         )
         log.info("Inserted psychologist settings.")
