@@ -3,7 +3,7 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class PatientStatus(str, Enum):
@@ -18,6 +18,12 @@ PATIENT_STATUS_PT: dict[PatientStatus, str] = {
     PatientStatus.IN_TESTING: "em avaliação",
     PatientStatus.LEAD: "em potencial",
     PatientStatus.INACTIVE: "inativos",
+}
+PATIENT_STATUS_PT_SINGULAR: dict[PatientStatus, str] = {
+    PatientStatus.ACTIVE: "ativo",
+    PatientStatus.IN_TESTING: "em avaliação",
+    PatientStatus.LEAD: "em potencial",
+    PatientStatus.INACTIVE: "inativo",
 }
 
 
@@ -121,6 +127,11 @@ class MonthlyInvoice(BaseModel):
     payment_status: MonthlyInvoiceStatus = MonthlyInvoiceStatus.PENDING
     nf_number: Optional[int] = None
     payment_date: Optional[date] = None
+    
+    @computed_field
+    @property
+    def total(self) -> int:
+        return self.session_price * (self.sessions_completed + self.sessions_to_recover - self.free_sessions) / 100
 
     class ConfigDict:
         """Pydantic configuration options."""
@@ -183,7 +194,21 @@ class PsychologistSettings(BaseModel):
     default_session_price: int = Field(
         default=23000, ge=0, description="The default session price in cents."
     )
-    logo_path: Optional[str] = None
+    default_evaluation_price: int = Field(
+        default=350000, ge=0, description="The default evaluation price in cents."
+    )
+    default_session_duration: int = Field(
+        default=45, ge=0, description="The default session duration in minutes."
+    )
+    logo_path: Optional[str] = Field(
+        default=None, description="The path to the psychologist's logo."
+    )
+
+    @field_validator("user_email")
+    def validate_user_email(cls, v: str) -> str:
+        if not v.endswith("@gmail.com"):
+            raise ValueError("User email must end with @gmail.com")
+        return v
 
     class ConfigDict:
         """Pydantic configuration options."""
