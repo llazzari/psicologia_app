@@ -26,17 +26,36 @@ from utils.monthly_invoice_computations import (
 def _invoice_modal(patient_: Patient, month_invoice: MonthlyInvoice) -> None:
     with st.form("invoice_form", border=False):
         st.markdown(f"**{patient_.name}**")
+        
         cols = st.columns(4)
+        
         with cols[0]:
-            month_invoice.session_price = int(
-                st.number_input(
-                    "Preço da sessão (R$)",
-                    min_value=0.0,
-                    step=0.01,
-                    value=float(np.round(month_invoice.session_price / 100, 2)),
+            if patient_.status == PatientStatus.IN_TESTING:
+                month_invoice.total = int(
+                    st.number_input(
+                        "Preço da avaliação (R$)",
+                        min_value=0.0,
+                        step=0.01,
+                        value=float(np.round(get_total(
+                            month_invoice.sessions_completed,
+                            month_invoice.sessions_to_recover,
+                            month_invoice.session_price,
+                            month_invoice.free_sessions,
+                            patient_.status,
+                        ) / 100, 2)),
+                    )
+                    * 100
                 )
-                * 100
-            )
+            else:
+                month_invoice.session_price = int(
+                    st.number_input(
+                        "Preço da sessão (R$)",
+                        min_value=0.0,
+                        step=0.01,
+                        value=float(np.round(month_invoice.session_price / 100, 2)),
+                    )
+                    * 100
+                )
         with cols[1]:
             month_invoice.sessions_completed = st.number_input(
                 "Sessões realizadas",
@@ -86,8 +105,16 @@ def _display_invoice_metrics(
     month_invoice: MonthlyInvoice,
     patient_: Patient,
 ) -> None:
-    col_name, col_sessions, col_price, col_total, col_status, col_info, col_edit = (
-        st.columns([2, 1, 1, 1, 1, 2, 1], vertical_alignment="center")
+    month_invoice.total = get_total(
+        month_invoice.sessions_completed,
+        month_invoice.sessions_to_recover,
+        month_invoice.session_price,
+        month_invoice.free_sessions,
+        patient_.status,
+    )
+
+    col_name, col_sessions, col_prices, col_status, col_info, col_edit = (
+        st.columns([2, 1, 2, 1, 2, 1], vertical_alignment="center")
     )
     with col_name:
         st.markdown(f"**{patient_.name}**")
@@ -99,21 +126,25 @@ def _display_invoice_metrics(
         help="Inclui sessões realizadas e a recuperar.",
     )
 
-    col_price.metric(
-        label="Preço (R$)",
-        value=get_formatted_price(month_invoice.session_price),
-        help="Preço da sessão.",
-    )
-    col_total.metric(
-        label="Total",
-        value=get_total(
-            month_invoice.sessions_completed,
-            month_invoice.sessions_to_recover,
-            month_invoice.session_price,
-            month_invoice.free_sessions,
-        ),
-        help="Valor total das sessões feitas e a recuperar. Não inclui sessões gratuitas.",
-    )
+    with col_prices:
+        if patient_.status == PatientStatus.IN_TESTING:
+            col_prices.metric(
+                label="Preço da avaliação (R$)",
+                value=get_formatted_price(month_invoice.total),
+                help="Preço da avaliação.",
+            )
+        else:
+            col_price, col_total = st.columns(2)
+            col_price.metric(
+                label="Preço (R$)",
+                value=get_formatted_price(month_invoice.session_price),
+                help="Preço da sessão.",
+            )
+            col_total.metric(
+                label="Total",
+                value=get_formatted_price(month_invoice.total),
+                help="Valor total das sessões feitas e a recuperar. Não inclui sessões gratuitas.",
+            )
 
     with col_status:
         BADGE_COLORS: dict[
