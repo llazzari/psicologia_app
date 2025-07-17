@@ -1,41 +1,25 @@
 from datetime import datetime
+from typing import Literal
 
 import numpy as np
 import streamlit as st
 
 from data.models import (
     MONTHLY_INVOICE_STATUS_PT,
+    PATIENT_STATUS_PT_SINGULAR,
     MonthlyInvoice,
     MonthlyInvoiceStatus,
     Patient,
+    PatientStatus,
 )
 from modules import navbar
 from service.monthly_invoice_manager import get_monthly_invoices, update_invoice_on_db
 from service.patient_manager import get_patient_by_id
-
-
-def _format_currency(value: float) -> str:
-    return f"R$ {value:,.2f}".replace(",", "-").replace(".", ",").replace("-", ".")
-
-
-def _get_total(
-    sessions_completed: int,
-    sessions_to_recover: int,
-    session_price: int,
-    free_sessions: int,
-) -> str:
-    total: float = (
-        session_price * (sessions_completed + sessions_to_recover - free_sessions) / 100
-    )
-    return _format_currency(total)
-
-
-def _get_formatted_price(session_price: int) -> str:
-    return _format_currency(session_price / 100)
-
-
-def _get_total_sessions(sessions_completed: int, sessions_to_recover: int) -> int:
-    return sessions_completed + sessions_to_recover
+from utils.monthly_invoice_computations import (
+    get_formatted_price,
+    get_total,
+    get_total_sessions,
+)
 
 
 @st.dialog("Editar fatura", width="large")
@@ -47,9 +31,9 @@ def _invoice_modal(patient_: Patient, month_invoice: MonthlyInvoice) -> None:
             month_invoice.session_price = int(
                 st.number_input(
                     "Preço da sessão (R$)",
-                    min_value=0,
+                    min_value=0.0,
                     step=0.01,
-                    value=np.round(month_invoice.session_price / 100, 2),
+                    value=float(np.round(month_invoice.session_price / 100, 2)),
                 )
                 * 100
             )
@@ -69,7 +53,6 @@ def _invoice_modal(patient_: Patient, month_invoice: MonthlyInvoice) -> None:
             month_invoice.free_sessions = st.number_input(
                 "Sessões gratuitas", min_value=0, value=month_invoice.free_sessions
             )
-
         colss = st.columns(3)
         with colss[0]:
             month_invoice.payment_date = st.date_input(
@@ -88,9 +71,12 @@ def _invoice_modal(patient_: Patient, month_invoice: MonthlyInvoice) -> None:
             )
         with colss[2]:
             month_invoice.nf_number = st.number_input(
-                "Número da NF", min_value=0, value=month_invoice.nf_number
+                "Número da NF",
+                min_value=0,
+                value=month_invoice.nf_number,
+                step=1,
             )
-        submitted = st.form_submit_button("Salvar")
+        submitted = st.form_submit_button("Salvar", icon=":material/save:")
         if submitted:
             update_invoice_on_db(month_invoice)
             st.rerun()
@@ -100,26 +86,27 @@ def _display_invoice_metrics(
     month_invoice: MonthlyInvoice,
     patient_: Patient,
 ) -> None:
-    col_name, col_sessions, col_price, col_total, col_info, col_edit = st.columns(
-        6, vertical_alignment="center"
+    col_name, col_sessions, col_price, col_total, col_status, col_info, col_edit = (
+        st.columns([2, 1, 1, 1, 1, 2, 1], vertical_alignment="center")
     )
     with col_name:
         st.markdown(f"**{patient_.name}**")
     col_sessions.metric(
         label="Total de sessões",
-        value=_get_total_sessions(
+        value=get_total_sessions(
             month_invoice.sessions_completed, month_invoice.sessions_to_recover
         ),
         help="Inclui sessões realizadas e a recuperar.",
     )
+
     col_price.metric(
         label="Preço (R$)",
-        value=_get_formatted_price(month_invoice.session_price),
-        help="Preço da sessão",
+        value=get_formatted_price(month_invoice.session_price),
+        help="Preço da sessão.",
     )
     col_total.metric(
         label="Total",
-        value=_get_total(
+        value=get_total(
             month_invoice.sessions_completed,
             month_invoice.sessions_to_recover,
             month_invoice.session_price,
@@ -127,6 +114,19 @@ def _display_invoice_metrics(
         ),
         help="Valor total das sessões feitas e a recuperar. Não inclui sessões gratuitas.",
     )
+
+    with col_status:
+        BADGE_COLORS: dict[
+            PatientStatus, Literal["violet", "gray", "blue", "orange"]
+        ] = {
+            PatientStatus.ACTIVE: "violet",
+            PatientStatus.INACTIVE: "gray",
+            PatientStatus.IN_TESTING: "blue",
+            PatientStatus.LEAD: "orange",
+        }
+        st.badge(
+            PATIENT_STATUS_PT_SINGULAR[patient_.status], color=BADGE_COLORS[patient_.status]
+        )
 
     with col_info:
         with st.popover("Outras informações", icon=":material/read_more:"):
