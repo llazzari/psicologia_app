@@ -9,7 +9,7 @@ from pages.documents_view import display_patient_docs, doc_editor
 
 def main() -> None:
     st.set_page_config(
-        layout="wide", page_title="Pacientes", initial_sidebar_state="collapsed"
+        layout="wide", page_title="Pacientes", initial_sidebar_state="collapsed", page_icon=":material/network_intelligence:",
     )
     navbar.render()
 
