@@ -3,7 +3,7 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, computed_field
 
 
 class PatientStatus(str, Enum):
@@ -127,11 +127,7 @@ class MonthlyInvoice(BaseModel):
     payment_status: MonthlyInvoiceStatus = MonthlyInvoiceStatus.PENDING
     nf_number: Optional[int] = None
     payment_date: Optional[date] = None
-    
-    @computed_field
-    @property
-    def total(self) -> int:
-        return self.session_price * (self.sessions_completed + self.sessions_to_recover - self.free_sessions) / 100
+    total: int = Field(default=0, ge=0)
 
     class ConfigDict:
         """Pydantic configuration options."""
