@@ -152,6 +152,7 @@ def render() -> None:
         layout="wide",
         page_title="Agendamento Semanal",
         initial_sidebar_state="collapsed",
+        page_icon=":material/network_intelligence:",
     )
     st.title("Agendamento Semanal")
 
