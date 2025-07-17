@@ -28,7 +28,8 @@ def create_monthly_invoices_table(connection: duckdb.DuckDBPyConnection) -> None
             sessions_to_recover INTEGER NOT NULL,
             payment_status VARCHAR CHECK (payment_status IN ('pending', 'paid', 'overdue', 'waived')) NOT NULL,
             nf_number INTEGER,
-            payment_date DATE
+            payment_date DATE,
+            total INTEGER NOT NULL
         );
         """
         connection.execute(sql_command)
@@ -63,7 +64,8 @@ def insert(connection: duckdb.DuckDBPyConnection, invoice: MonthlyInvoice) -> UU
             sessions_to_recover, 
             payment_status, 
             nf_number, 
-            payment_date
+            payment_date,
+            total
         FROM invoice_df
         """
         connection.execute(sql)
