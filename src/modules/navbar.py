@@ -29,9 +29,9 @@ def render() -> None:
         st.markdown("## Usuário Logado")
 
         st.page_link("pages/logout.py", label="Logout", icon=":material/logout:")
-        st.page_link(
-            "pages/settings_page.py", label="Configurações", icon=":material/settings:"
-        )
+        # st.page_link(
+        #     "pages/settings_page.py", label="Configurações", icon=":material/settings:"
+        # )
 
 
 # !FIXME when documents are open, the patients page in the sidebar does not clean the URL
