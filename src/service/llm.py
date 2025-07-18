@@ -3,8 +3,7 @@ from pydantic_ai import Agent, RunContext
 from pydantic_ai.models.mistral import MistralModel
 from pydantic_ai.providers.mistral import MistralProvider
 
-from data.models import Document, DocumentCategory, DocumentContent
-from service.patient_manager import get_all_patients
+from data.models import Document, DocumentContent
 
 MISTRAL_API_KEY = st.secrets.api_keys.mistral_api_key
 SYSTEM_PROMPT: str = """
@@ -34,14 +33,16 @@ agent = Agent(
 @agent.system_prompt
 async def get_document_category(ctx: RunContext[Document]) -> str:
     """Returns the document category."""
-    return f"{ctx.deps.category}"
+    doc_category = ctx.deps.category
+    return f"The document category is {doc_category}"
 
 
-def get_document_content() -> None:
-    patients = get_all_patients()
-    patient_id = patients[0].id
-    result = agent.run_sync(
-        "Davi chegou a consulta com comportamentos bastante ansiosos e agressivos, colocando objetos na boca e tentando agredir a terapeuta em situações frustrantes. Seu limiar de tolerância está muito baixo. Do meio para o final da sessão conseguiu melhorar seu comportamento e aceitou tarefas mais complexas não demonstrando mais agressividade.",
-        deps=Document(patient_id=patient_id, category=DocumentCategory.PRONTUARY),
+async def generate_content(document: Document, user_input: str) -> DocumentContent:
+    print("user_input")
+    print(user_input)
+    result = await agent.run(
+        user_input,
+        deps=document,
     )
     print(result.output)
+    return result.output
