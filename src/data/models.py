@@ -3,7 +3,7 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, computed_field, field_validator
 
 
 class PatientStatus(str, Enum):
@@ -27,28 +27,65 @@ PATIENT_STATUS_PT_SINGULAR: dict[PatientStatus, str] = {
 }
 
 
+class ClassTime(str, Enum):
+    MORNING = "morning"
+    AFTERNOON = "afternoon"
+
+
+class Child(BaseModel):
+    school: Optional[str] = None
+    grade: Optional[str] = None
+    class_time: Optional[ClassTime] = None
+    tutor_name: Optional[str] = None
+    tutor_cpf_cnpj: Optional[str] = None
+
+
+class PatientGender(str, Enum):
+    MALE = "male"
+    FEMALE = "female"
+
+
+class PatientInfo(BaseModel):
+    name: str
+    birthdate: Optional[date] = None
+    address: Optional[str] = None
+    contact: Optional[str] = None
+    gender: Optional[PatientGender] = None
+    cpf_cnpj: Optional[str] = None
+
+    @computed_field
+    @property
+    def age(self) -> Optional[str]:
+        if self.birthdate:
+            age_in_days: int = (datetime.now().date() - self.birthdate).days
+
+            years: int = age_in_days // 365
+            formatted_years: str = f"{years} anos" if years > 1 else "1 ano"
+
+            months: int = (age_in_days % 365) // 30
+
+            if months == 0:
+                return formatted_years
+
+            formatted_months: str = f"e {months} meses" if months > 1 else "e 1 mês"
+            return f"{formatted_years} {formatted_months}"
+        return None
+
+
 class Patient(BaseModel):
     """
     Pydantic model for a patient.
     Provides data validation for patient records.
     """
 
-    # Allow id to be None when creating a new patient, but it will be set by the DB.
     # The default_factory ensures a new UUID is generated if no id is provided.
     id: UUID = Field(default_factory=uuid4)
 
-    name: str
-    address: Optional[str] = None
-    contact: Optional[str] = None  # Phone number or other contact info
-    birthdate: Optional[date] = None
-    is_child: bool = True
-
-    cpf_cnpj: Optional[str] = None
-
-    school: Optional[str] = None
-    tutor_cpf_cnpj: Optional[str] = None
+    info: PatientInfo
     status: PatientStatus = PatientStatus.ACTIVE
+    diagnosis: Optional[str] = None
     contract: Optional[str] = None
+    child: Optional[Child] = None
 
     class ConfigDict:
         """
