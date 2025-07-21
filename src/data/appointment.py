@@ -44,8 +44,8 @@ def insert(connection: duckdb.DuckDBPyConnection, appointment: Appointment) -> N
         log.info(
             f"APP-LOGIC: Attempting to add appointment for patient ID {appointment.patient_id}."
         )
-        appointment_df = pd.DataFrame([appointment.model_dump()])
-        connection.register("appointment_df", appointment_df)
+        appointment_df: pd.DataFrame = pd.DataFrame([appointment.model_dump()])  # type: ignore
+        connection.register("appointment_df", appointment_df)  # type: ignore
 
         sql = """
         INSERT OR REPLACE INTO appointments 
