@@ -6,7 +6,9 @@ def render() -> None:
         "assets/marca_roxa1.png", icon_image="assets/simbolo_roxo1.png", size="large"
     )
     with st.sidebar:
-        st.page_link("main.py", label="Página Inicial", icon=":material/home:")
+        st.page_link(
+            "pages/homepage.py", label="Página Inicial", icon=":material/home:"
+        )
 
         st.markdown("## Gerenciamento")
 

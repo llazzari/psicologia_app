@@ -1,26 +1,8 @@
 import streamlit as st
 
 from modules import navbar
+from pages import homepage
 from service.database_manager import initialize_database
-
-
-@st.cache_data()
-def homepage() -> None:
-    st.title("Bem-vindo(a) ao Sistema de Gerenciamento")
-
-    st.markdown("""
-    Este é o seu painel de controle para gerenciar agendamentos, pacientes e finanças.
-            
-    Utilize o menu na barra lateral esquerda para navegar entre as diferentes seções do aplicativo.
-
-    **Funcionalidades disponíveis:**
-    - **Página Inicial:** Esta página de boas-vindas.
-    - **Pacientes:** Cadastre ou edite pacientes.
-    - **Agendamento Semanal:** Visualize e gerencie os agendamentos em uma grade semanal interativa.
-    - **Controle Financeiro:** Visualize e gerencie as finanças relacionadas aos pacientes.
-                
-    Comece selecionando uma opção no menu ao lado.
-    """)
 
 
 def main():
@@ -38,9 +20,18 @@ def main():
             st.login("google")
     else:
         navbar.render()
-        homepage()
+        homepage.render()
         initialize_database()
+        # mock.insert_patients()
+        # mock.insert_appointments()
+        # settings_service.insert(PsychologistSettings(user_email=st.user.email))  # type: ignore
+        # st.session_state.settings = settings_service.get_by_(st.user.email)  # type: ignore
 
+        # llm.get_document_content()
+
+
+# TODO - add a company page with expenses and revenues
+# TODO - add a return to docs_list and patients_list from doc_editor
 
 if __name__ == "__main__":
     main()
