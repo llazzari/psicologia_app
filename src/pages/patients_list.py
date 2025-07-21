@@ -3,110 +3,134 @@ from typing import Optional
 
 import streamlit as st
 
-from data.models import PATIENT_STATUS_PT, Patient, PatientStatus
+from data.models import (
+    PATIENT_STATUS_PT,
+    PATIENT_STATUS_PT_SINGULAR,
+    Child,
+    ClassTime,
+    Patient,
+    PatientGender,
+    PatientInfo,
+    PatientStatus,
+)
 from service.patient_manager import get_all_patients, update_patient_on_db
 
 
-@st.dialog("Adicionar/editar dados do paciente", width="small")
+@st.dialog("Adicionar/editar dados do paciente", width="large")
 def _patient_modal(patient_: Optional[Patient] = None) -> None:
     if patient_ is None:
-        patient_ = Patient(name="")  # uses default values
+        patient_ = Patient(info=PatientInfo(name=""))  # uses default values
+        is_child = (
+            st.pills(
+                "Escolha a faixa etária",
+                options=["Criança", "Adulto"],
+                default="Criança",
+            )
+            == "Criança"
+        )
+        if is_child:
+            patient_.child = Child()
 
     with st.form("patient_form", border=False):
-        patient_.name = st.text_input("Nome", value=patient_.name)
-        patient_.address = st.text_input("Endereço", value=patient_.address)
-
-        col1, _, col2 = st.columns([2, 1, 2], vertical_alignment="center")
-        with col1:
-            patient_.birthdate = st.date_input(
+        col_name, col_birthdate, col_gender = st.columns([3, 1, 1])
+        with col_name:
+            patient_.info.name = st.text_input(
+                "Nome completo", value=patient_.info.name
+            )
+        with col_birthdate:
+            patient_.info.birthdate = st.date_input(
                 "Data de nascimento",
-                value=patient_.birthdate,
+                value=patient_.info.birthdate,
                 format="DD/MM/YYYY",
                 min_value=date(1940, 1, 1),
                 max_value=date.today(),
             )
-        with col2:
-            patient_.is_child = st.checkbox(
-                "Criança/Adolescente", value=patient_.is_child
+        with col_gender:
+            patient_.info.gender = st.pills(
+                "Gênero",
+                options=list(PatientGender),
+                format_func=lambda x: "M" if x == PatientGender.MALE else "F",
+                default=patient_.info.gender
+                if patient_.info.gender
+                else PatientGender.MALE,
             )
+
+        patient_.info.address = st.text_input("Endereço", value=patient_.info.address)
 
         col1, col2, col3 = st.columns(3)
         with col1:
-            patient_.contact = st.text_input(
+            patient_.info.contact = st.text_input(
                 "Celular",
-                value=patient_.contact,
+                value=patient_.info.contact,
                 help="Somente números. Ex: 53999999999",
-                max_chars=11,
             )
         with col2:
-            patient_.cpf_cnpj = st.text_input(
+            patient_.info.cpf_cnpj = st.text_input(
                 "CPF/CNPJ",
-                value=patient_.cpf_cnpj,
+                value=patient_.info.cpf_cnpj,
                 help="Somente números. Ex: 12345678910",
-                max_chars=11,
             )
         with col3:
-            translated_status: dict[str, str] = {
-                "active": "Ativo",
-                "in testing": "Em avaliação",
-                "lead": "Prospecto",
-                "inactive": "Inativo",
-            }
             patient_.status = st.selectbox(
                 "Status",
                 options=PatientStatus,
                 index=list(PatientStatus).index(
                     patient_.status
                 ),  # transforms Enum to list and selects the index
-                format_func=lambda x: translated_status[x],
+                format_func=lambda x: PATIENT_STATUS_PT_SINGULAR[x].capitalize(),
             )
 
-        if patient_.is_child:
-            col1, col2 = st.columns([3, 2])
+        if patient_.child:
+            st.divider()
+            col1, col2, col3 = st.columns([3, 2, 1])
             with col1:
-                patient_.school = st.text_input("Escola", value=patient_.school)
+                patient_.child.school = st.text_input(
+                    "Escola", value=patient_.child.school
+                )
             with col2:
-                patient_.tutor_cpf_cnpj = st.text_input(
-                    "CPF/CNPJ do Tutor",
-                    value=patient_.tutor_cpf_cnpj,
-                    help="Somente números. Ex: 12345678910",
-                    max_chars=11,
+                patient_.child.class_time = st.pills(
+                    "Turno",
+                    options=list(ClassTime),
+                    format_func=lambda x: "Manhã"
+                    if x == ClassTime.MORNING
+                    else "Tarde",
+                    default=patient_.child.class_time
+                    if patient_.child.class_time
+                    else ClassTime.MORNING,
+                )
+            with col3:
+                patient_.child.grade = st.text_input(
+                    "Série", value=patient_.child.grade
                 )
 
-        patient_.contract = st.text_input(
-            "CNPJ convênio",
-            value=patient_.contract,
-            help="Somente números. Ex: 12345678910",
-            max_chars=11,
-        )
+            col_tutor1, col_tutor2 = st.columns([3, 2])
+            with col_tutor1:
+                patient_.child.tutor_name = st.text_input(
+                    "Nome do Tutor", value=patient_.child.tutor_name
+                )
+            with col_tutor2:
+                patient_.child.tutor_cpf_cnpj = st.text_input(
+                    "CPF/CNPJ do Tutor",
+                    value=patient_.child.tutor_cpf_cnpj,
+                    help="Somente números. Ex: 12345678910",
+                )
+            st.divider()
+
+        col1, col2 = st.columns([3, 2])
+        with col1:
+            patient_.diagnosis = st.text_input("Diagnóstico", value=patient_.diagnosis)
+        with col2:
+            patient_.contract = st.text_input(
+                "CNPJ convênio",
+                value=patient_.contract,
+                help="Somente números. Ex: 12345678910",
+            )
 
         submitted = st.form_submit_button("Salvar alterações")
         if submitted:
             update_patient_on_db(patient_)
             st.session_state["all_patients"] = get_all_patients()
             st.rerun()
-
-
-@st.cache_data
-def _get_age(birthdate: date | None) -> str:
-    """
-    Calculates the age of a patient based on their birthdate.
-    Returns a string representation of the age.
-    """
-    if not birthdate:
-        return "N/A"
-    today = date.today()
-    age = (
-        today.year
-        - birthdate.year
-        - ((today.month, today.day) < (birthdate.month, birthdate.day))
-    )
-    age_str: str = f"{age} anos" if age > 1 else f"{age} ano"
-    months = (today.month - birthdate.month) % 12
-    months_str: str = f"{months} meses" if months > 1 else f"{months} mês"
-    if months == 0:
-        return age_str
-    return f"{age_str} e {months_str}"
 
 
 def _display_patient_info(patient_: Patient):
@@ -118,16 +142,18 @@ def _display_patient_info(patient_: Patient):
             [2, 1, 1, 1, 1], vertical_alignment="center"
         )
         with col1:
-            st.markdown(f"**{patient_.name.strip()}**")
-            if patient_.is_child:
+            st.markdown(f"**{patient_.info.name.strip()}**")
+            if patient_.child:
                 st.caption("Criança/Adolescente")
         col2.metric(
             label="Nascimento",
-            value=patient_.birthdate.strftime("%d/%m/%Y")
-            if patient_.birthdate
+            value=patient_.info.birthdate.strftime("%d/%m/%Y")
+            if patient_.info.birthdate
             else "N/A",
         )
-        col3.metric(label="Idade", value=_get_age(patient_.birthdate))
+        col3.metric(
+            label="Idade", value=patient_.info.age if patient_.info.age else "N/A"
+        )
         with col4:
             if st.button(
                 "Ver documentos",
