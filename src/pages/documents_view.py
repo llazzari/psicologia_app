@@ -59,7 +59,7 @@ async def doc_editor() -> None:
 
     with col_ai:
         st.markdown("Prontuário gerado por IA")
-        if st.session_state[f"ai_{doc.id}"]:
+        if st.session_state.get(f"ai_{doc.id}"):
             st.markdown(st.session_state[f"ai_{doc.id}"])
 
     with st.form(key=f"form_{doc.id}_content", clear_on_submit=False):
@@ -81,7 +81,7 @@ async def doc_editor() -> None:
 
 
 def display_docs_header(patient_: Patient) -> None:
-    st.title(f"Documentos de {patient_.name.strip()}")
+    st.title(f"Documentos de {patient_.info.name.strip()}")
     cols = st.columns(4)
     with cols[0]:
         if st.button("Voltar para a lista de pacientes", icon=":material/arrow_back:"):
