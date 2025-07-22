@@ -7,6 +7,7 @@ from data.models import (
     Child,
     ClassTime,
     Patient,
+    PatientGender,
     PatientInfo,
     PatientStatus,
 )
@@ -22,6 +23,7 @@ def get_patients() -> list[Patient]:
                 contact="123456789",
                 birthdate=date(2022, 1, 1),
                 cpf_cnpj="123.456.789-00",
+                gender=PatientGender.MALE,
             ),
             status=PatientStatus.ACTIVE,
             diagnosis="Diagnóstico 1",
@@ -41,6 +43,7 @@ def get_patients() -> list[Patient]:
                 contact="987654321",
                 birthdate=date(2020, 1, 1),
                 cpf_cnpj="987.654.321-00",
+                gender=PatientGender.FEMALE,
             ),
             status=PatientStatus.IN_TESTING,
             diagnosis="Diagnóstico 2",
