@@ -1,4 +1,3 @@
-import asyncio
 import uuid
 
 import streamlit as st
@@ -19,7 +18,7 @@ def main() -> None:
     navbar.render()
 
     if "edit" in st.query_params:
-        asyncio.run(doc_editor())
+        doc_editor()
     elif "patient_id" in st.query_params:
         st.session_state["patient"] = get_patient_by_id(
             uuid.UUID(st.query_params["patient_id"])
