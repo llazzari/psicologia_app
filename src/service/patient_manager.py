@@ -4,7 +4,7 @@ from uuid import UUID
 import streamlit as st
 
 from data import patient
-from data.models import Patient
+from data.models.patient_models import Patient
 from service.database_manager import get_db_connection
 
 
