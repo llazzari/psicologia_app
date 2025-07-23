@@ -5,7 +5,13 @@ from uuid import UUID
 import duckdb
 import pandas as pd
 
-from data.models import Child, Patient, PatientGender, PatientInfo, PatientStatus
+from data.models.patient_models import (
+    Child,
+    Patient,
+    PatientGender,
+    PatientInfo,
+    PatientStatus,
+)
 
 log = logging.getLogger("TestLogger")
 
