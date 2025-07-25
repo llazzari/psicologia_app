@@ -4,11 +4,13 @@ from typing import Literal
 import numpy as np
 import streamlit as st
 
-from data.models import (
+from data.models.invoice_models import (
     MONTHLY_INVOICE_STATUS_PT,
-    PATIENT_STATUS_PT_SINGULAR,
     MonthlyInvoice,
     MonthlyInvoiceStatus,
+)
+from data.models.patient_models import (
+    PATIENT_STATUS_PT_SINGULAR,
     Patient,
     PatientStatus,
 )
@@ -25,10 +27,10 @@ from utils.monthly_invoice_computations import (
 @st.dialog("Editar fatura", width="large")
 def _invoice_modal(patient_: Patient, month_invoice: MonthlyInvoice) -> None:
     with st.form("invoice_form", border=False):
-        st.markdown(f"**{patient_.name}**")
-        
+        st.markdown(f"**{patient_.info.name}**")
+
         cols = st.columns(4)
-        
+
         with cols[0]:
             if patient_.status == PatientStatus.IN_TESTING:
                 month_invoice.total = int(
@@ -36,13 +38,19 @@ def _invoice_modal(patient_: Patient, month_invoice: MonthlyInvoice) -> None:
                         "Preço da avaliação (R$)",
                         min_value=0.0,
                         step=0.01,
-                        value=float(np.round(get_total(
-                            month_invoice.sessions_completed,
-                            month_invoice.sessions_to_recover,
-                            month_invoice.session_price,
-                            month_invoice.free_sessions,
-                            patient_.status,
-                        ) / 100, 2)),
+                        value=float(
+                            np.round(
+                                get_total(
+                                    month_invoice.sessions_completed,
+                                    month_invoice.sessions_to_recover,
+                                    month_invoice.session_price,
+                                    month_invoice.free_sessions,
+                                    patient_.status,
+                                )
+                                / 100,
+                                2,
+                            )
+                        ),
                     )
                     * 100
                 )
@@ -113,11 +121,11 @@ def _display_invoice_metrics(
         patient_.status,
     )
 
-    col_name, col_sessions, col_prices, col_status, col_info, col_edit = (
-        st.columns([2, 1, 2, 1, 2, 1], vertical_alignment="center")
+    col_name, col_sessions, col_prices, col_status, col_info, col_edit = st.columns(
+        [2, 1, 2, 1, 2, 1], vertical_alignment="center"
     )
     with col_name:
-        st.markdown(f"**{patient_.name}**")
+        st.markdown(f"**{patient_.info.name}**")
     col_sessions.metric(
         label="Total de sessões",
         value=get_total_sessions(
@@ -156,7 +164,8 @@ def _display_invoice_metrics(
             PatientStatus.LEAD: "orange",
         }
         st.badge(
-            PATIENT_STATUS_PT_SINGULAR[patient_.status], color=BADGE_COLORS[patient_.status]
+            PATIENT_STATUS_PT_SINGULAR[patient_.status],
+            color=BADGE_COLORS[patient_.status],
         )
 
     with col_info:
@@ -170,10 +179,10 @@ def _display_invoice_metrics(
                 f"**Datas das sessões**: {', '.join([date.strftime('%d/%m/%Y') for date in month_invoice.appointment_dates])}"
             )
 
-            if patient_.is_child:
-                st.markdown(f"**CPF/CNPJ do tutor**: {patient_.tutor_cpf_cnpj}")
+            if patient_.child:
+                st.markdown(f"**CPF/CNPJ do tutor**: {patient_.child.tutor_cpf_cnpj}")
             else:
-                st.markdown(f"**CPF**: {patient_.cpf_cnpj}")
+                st.markdown(f"**CPF**: {patient_.info.cpf_cnpj}")
 
             if patient_.contract:
                 st.markdown(f"**CNPJ do convênio**: {patient_.contract}")
