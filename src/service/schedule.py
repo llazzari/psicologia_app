@@ -5,8 +5,10 @@ from typing import Any
 import streamlit as st
 
 from data import appointment, patient
-from data.models import Appointment, Patient
+from data.models.appointment_models import Appointment
+from data.models.patient_models import Patient
 from service.database_manager import get_db_connection
+from service.patient_manager import get_patient_by_id
 from utils.helpers import get_week_days
 
 
@@ -37,11 +39,11 @@ def _turn_weekly_appointments_into_calendar_events(
         """
         Converts a single Appointment object into a calendar event dictionary.
         """
+        patient = get_patient_by_id(appt.patient_id)
+        patient_name = patient.info.name if patient else "Paciente desconhecido"
         return {
             "id": str(appt.id),
-            "title": f"{appt.patient_name} ({appt.notes})"
-            if appt.notes
-            else appt.patient_name,
+            "title": f"{patient_name} ({appt.notes})" if appt.notes else patient_name,
             "start": datetime.combine(
                 appt.appointment_date, appt.appointment_time
             ).isoformat(),

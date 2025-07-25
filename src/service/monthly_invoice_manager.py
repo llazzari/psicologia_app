@@ -1,5 +1,5 @@
 from data import monthly_invoice
-from data.models import MonthlyInvoice
+from data.models.invoice_models import MonthlyInvoice
 from service.database_manager import get_db_connection
 
 

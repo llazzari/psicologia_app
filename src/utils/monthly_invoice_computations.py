@@ -1,6 +1,7 @@
 import streamlit as st
 
-from data.models import PatientStatus
+from data.models.patient_models import PatientStatus
+
 
 @st.cache_data(ttl=3600)
 def format_currency(value: float) -> str:
@@ -16,11 +17,13 @@ def get_total(
     patient_status: PatientStatus,
 ) -> int:
     if patient_status == PatientStatus.IN_TESTING:
-        return 350000 # TODO - GET IT FROM SETTINGS
+        return 350000  # TODO - GET IT FROM SETTINGS
     else:
-        return session_price * (sessions_completed + sessions_to_recover - free_sessions) 
-    
-    
+        return session_price * (
+            sessions_completed + sessions_to_recover - free_sessions
+        )
+
+
 @st.cache_data(ttl=3600)
 def get_formatted_price(session_price: int) -> str:
     return format_currency(session_price / 100)

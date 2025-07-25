@@ -1,7 +1,7 @@
 import streamlit as st
 
 from data import psychologist_settings
-from data.models import PsychologistSettings
+from data.models.psychologist_settings_models import PsychologistSettings
 from service.database_manager import get_db_connection
 
 
