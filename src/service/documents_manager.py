@@ -1,7 +1,7 @@
 from uuid import UUID
 
 from data import documents
-from data.models import Document, DocumentCategory
+from data.models.document_models import Document, DocumentCategory
 from service.database_manager import get_db_connection
 
 
