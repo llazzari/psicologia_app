@@ -1,6 +1,6 @@
 import streamlit as st
 
-from data.models import PsychologistSettings
+from data.models.psychologist_settings_models import PsychologistSettings
 from modules import navbar
 from service import settings_service
 

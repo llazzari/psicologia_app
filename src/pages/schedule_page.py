@@ -4,7 +4,8 @@ from typing import Any, Optional
 import streamlit as st
 from streamlit_calendar import calendar  # type: ignore
 
-from data.models import Appointment, Patient
+from data.models.appointment_models import Appointment
+from data.models.patient_models import Patient
 from modules import navbar
 from service.patient_manager import get_patient_by_id
 from service.schedule import (
@@ -28,8 +29,8 @@ def schedule_appointment(
         st.warning("Nenhum paciente cadastrado. Cadastre um paciente primeiro.")
         return
 
-    index: int = 0
-    appt = Appointment(patient_id=patients[0].id, patient_name="")
+    index: int = 0  # type: ignore
+    appt = Appointment(patient_id=patients[0].id)
 
     if selected_event:
         appt: Appointment = get_appointment_from(selected_event)
@@ -42,16 +43,15 @@ def schedule_appointment(
         raise ValueError("One of selected_datetime and selected_event must be provided")
 
     with st.form("appointment_form", border=False):
-        selected_patient = st.selectbox(
+        selected_patient: Patient = st.selectbox(
             "Selecione um paciente",
             patients,
-            format_func=lambda p: p.name,
+            format_func=lambda p: p.info.name,
             placeholder="Selecione um paciente",
             index=index,
         )
 
         appt.patient_id = selected_patient.id
-        appt.patient_name = selected_patient.name
 
         col_1, col_2, col_3 = st.columns(3, vertical_alignment="center")
         with col_1:
