@@ -33,11 +33,17 @@ class ClassTime(str, Enum):
 
 
 class Child(BaseModel):
-    school: str = Field(description="The child's school name.")
-    grade: str = Field(description="The child's grade.")
-    class_time: ClassTime = Field(description="The child's class time.")
-    tutor_name: str = Field(description="The child's tutor name.")
-    tutor_cpf_cnpj: str = Field(description="The child's tutor CPF/CNPJ.")
+    school: Optional[str] = Field(default=None, description="The child's school name.")
+    grade: Optional[str] = Field(default=None, description="The child's grade.")
+    class_time: Optional[ClassTime] = Field(
+        default=None, description="The child's class time."
+    )
+    tutor_name: Optional[str] = Field(
+        default=None, description="The child's tutor name."
+    )
+    tutor_cpf_cnpj: Optional[str] = Field(
+        default=None, description="The child's tutor CPF/CNPJ."
+    )
 
 
 class PatientGender(str, Enum):
