@@ -25,7 +25,6 @@ class Appointment(BaseModel):
 
     id: UUID = Field(default_factory=uuid4)
     patient_id: UUID
-    patient_name: str
     appointment_date: date = Field(default_factory=date.today)
     appointment_time: time = Field(default_factory=datetime.now().time)
     duration: int = 45  # in minutes
