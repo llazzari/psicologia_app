@@ -3,7 +3,7 @@ from typing import Optional
 
 import streamlit as st
 
-from data.models import (
+from data.models.patient_models import (
     PATIENT_STATUS_PT,
     PATIENT_STATUS_PT_SINGULAR,
     Child,
@@ -97,7 +97,7 @@ def _patient_modal(patient_: Optional[Patient] = None) -> None:
                     default=patient_.child.class_time
                     if patient_.child.class_time
                     else ClassTime.MORNING,
-                )
+                )  # type: ignore
             with col3:
                 patient_.child.grade = st.text_input(
                     "Série", value=patient_.child.grade
