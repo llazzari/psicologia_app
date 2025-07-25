@@ -5,9 +5,13 @@ from uuid import UUID, uuid4
 from pydantic import BaseModel, Field
 
 
+class DeclarationContent(BaseModel):
+    content: str = Field(default="", description="The content of the declaration.")
+
+
 class PsychologicalReportContent(BaseModel):
     identification: str = Field(default="", description="")
-    description: str = Field(
+    demand_description: str = Field(
         default="", description="The psychological report description."
     )
 
@@ -27,26 +31,17 @@ class ProntuaryContent(BaseModel):
 
 
 class DocumentCategory(str, Enum):
-    PRONTUARY = "prontuary"
-    PSYCHOLOGICAL_REPORT = "psychological_report"
-    PSYCHOLOGICAL_OPINION = "psychological_opinion"
-    # APPRAISAL = "appraisal"  # laudo
-    ANAMNESIS = "anamnesis"
-    DECLARATION = "declaration"
-    BUDGET = "budget"
-    OTHER = "other"
+    PRONTUARY = "Prontuário"
+    DECLARATION = "Declaração"
+    PSYCHOLOGICAL_CERTIFICATE = "Certificado Psicológico"
+    PSYCHOLOGICAL_REPORT = "Relatório Psicológico"
+    MULTIDISCIPLINARY_REPORT = "Relatório Multidisciplinar"
+    PSYCHOLOGICAL_EVALUATION_REPORT = "Laudo Psicológico"
+    PSYCHOLOGICAL_OPINION = "Opinião Psicológica"
+    ANAMNESIS = "Anamnese"
+    BUDGET = "Orçamento"
+    OTHER = "Outro"
 
-
-DOCUMENT_CATEGORY_PT: dict[DocumentCategory, str] = {
-    DocumentCategory.PRONTUARY: "prontuário",
-    DocumentCategory.PSYCHOLOGICAL_REPORT: "relatório psicológico",
-    DocumentCategory.PSYCHOLOGICAL_OPINION: "opinião psicológica",
-    # DocumentCategory.APPRAISAL: "laudo",
-    DocumentCategory.ANAMNESIS: "anamnese",
-    DocumentCategory.DECLARATION: "declaração",
-    DocumentCategory.BUDGET: "orçamento",
-    DocumentCategory.OTHER: "outro",
-}
 
 DocumentContent: TypeAlias = Union[
     ProntuaryContent, PsychologicalReportContent, PsychologicalOpinionContent
