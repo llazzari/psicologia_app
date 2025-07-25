@@ -1,8 +1,10 @@
 import logging
+from typing import Any
 
 import duckdb
 
-from data.models import PsychologistSettings
+from data.db_utils import insert_model
+from data.models.psychologist_settings_models import PsychologistSettings
 
 log = logging.getLogger("TestLogger")
 
@@ -37,15 +39,27 @@ def insert(
     connection: duckdb.DuckDBPyConnection, psychologist_settings: PsychologistSettings
 ) -> None:
     try:
-        log.info(f"Inserting psychologist settings: {psychologist_settings}")
-        connection.execute(
-            "INSERT OR REPLACE INTO psychologist_settings VALUES (?, ?, ?, ?, ?, ?, ?)",
-            psychologist_settings.model_dump().values(),
+        insert_model(
+            connection,
+            "psychologist_settings",
+            psychologist_settings.model_dump(),
         )
-        log.info("Inserted psychologist settings.")
+        log.info(
+            f"Inserted psychologist settings for {psychologist_settings.user_email}"
+        )
     except Exception:
-        log.error("Failed to insert psychologist settings.", exc_info=True)
+        log.error(
+            f"Failed to insert psychologist settings for {psychologist_settings.user_email}",
+            exc_info=True,
+        )
         raise
+
+
+def _fetch_psychologist_settings_row(
+    connection: duckdb.DuckDBPyConnection, email: str
+) -> tuple[Any, ...] | None:
+    sql = "SELECT * FROM psychologist_settings WHERE user_email = ?;"
+    return connection.execute(sql, (email,)).fetchone()  # type: ignore
 
 
 def get_by_email(
@@ -55,15 +69,12 @@ def get_by_email(
         log.info(
             f"APP-LOGIC: Attempting to retrieve psychologist settings for email {email}."
         )
-        sql = "SELECT * FROM psychologist_settings WHERE user_email = ?;"
-        result = connection.execute(sql, (email,)).fetchone()  # type: ignore
-
-        if result is None:
+        row = _fetch_psychologist_settings_row(connection, email)
+        if row is None:
             log.warning(f"APP-LOGIC: No psychologist settings found for email {email}.")
             raise ValueError(f"No psychologist settings found for email {email}.")
-
         psychologist_settings = PsychologistSettings(
-            **{k: v for k, v in zip(PsychologistSettings.model_fields.keys(), result)}  # type: ignore
+            **{k: v for k, v in zip(PsychologistSettings.model_fields.keys(), row)}  # type: ignore
         )
         log.info(
             f"APP-LOGIC: Successfully retrieved psychologist settings for email {email}."

@@ -1,10 +1,10 @@
-import logging
 from typing import Any, Optional
 from uuid import UUID
 
 import duckdb
-import pandas as pd
+import logfire
 
+from data.db_utils import insert_model
 from data.models.patient_models import (
     Child,
     Patient,
@@ -13,13 +13,15 @@ from data.models.patient_models import (
     PatientStatus,
 )
 
-log = logging.getLogger("TestLogger")
+logfire.configure()
 
 
 def create_patients_table(connection: duckdb.DuckDBPyConnection) -> None:
     """Creates the 'patients' table with the expanded schema to match the Patient model."""
     try:
-        log.info("APP-LOGIC: Attempting to create 'patients' table with new schema.")
+        logfire.info(
+            "APP-LOGIC: Attempting to create 'patients' table with new schema."
+        )
         sql_command = """
         CREATE TABLE IF NOT EXISTS patients (
             id UUID PRIMARY KEY,
@@ -40,53 +42,50 @@ def create_patients_table(connection: duckdb.DuckDBPyConnection) -> None:
         );
         """
         connection.execute(sql_command)
-        log.info("APP-LOGIC: 'patients' table created or already exists.")
+        logfire.info("APP-LOGIC: 'patients' table created or already exists.")
     except Exception:
-        log.error("APP-LOGIC: Failed to create 'patients' table.", exc_info=True)
+        logfire.error("APP-LOGIC: Failed to create 'patients' table.", exc_info=True)
         raise
+
+
+def patient_field_map(model: Patient) -> dict[str, Any]:
+    return {
+        "id": model.id,
+        "name": model.info.name,
+        "address": model.info.address,
+        "contact": model.info.contact,
+        "birthdate": model.info.birthdate,
+        "gender": model.info.gender,
+        "cpf_cnpj": model.info.cpf_cnpj,
+        "status": model.status,
+        "diagnosis": model.diagnosis,
+        "contract": model.contract,
+        "school": model.child.school if model.child else None,
+        "grade": model.child.grade if model.child else None,
+        "class_time": model.child.class_time if model.child else None,
+        "tutor_name": model.child.tutor_name if model.child else None,
+        "tutor_cpf_cnpj": model.child.tutor_cpf_cnpj if model.child else None,
+    }
 
 
 def insert(connection: duckdb.DuckDBPyConnection, patient: Patient) -> None:
-    """
-    Adds a new patient to the 'patients' table using a Pydantic model.
-    Flattens nested fields for storage.
-    """
     try:
-        log.info(f"APP-LOGIC: Attempting to add patient '{patient.info.name}'.")
-        # Flatten patient model for DB
-        patient_dict = {
-            "id": patient.id,
-            "name": patient.info.name,
-            "address": patient.info.address,
-            "contact": patient.info.contact,
-            "birthdate": patient.info.birthdate,
-            "gender": patient.info.gender,
-            "cpf_cnpj": patient.info.cpf_cnpj,
-            "status": patient.status,
-            "diagnosis": patient.diagnosis,
-            "contract": patient.contract,
-            "school": patient.child.school if patient.child else None,
-            "grade": patient.child.grade if patient.child else None,
-            "class_time": patient.child.class_time if patient.child else None,
-            "tutor_name": patient.child.tutor_name if patient.child else None,
-            "tutor_cpf_cnpj": patient.child.tutor_cpf_cnpj if patient.child else None,
-        }
-        patient_df: pd.DataFrame = pd.DataFrame([patient_dict])  # type: ignore
-        connection.register("patient_df", patient_df)  # type: ignore
-        sql = """
-        INSERT OR REPLACE INTO patients 
-        SELECT 
-            id, name, address, contact, birthdate, gender, cpf_cnpj, status, diagnosis, contract, school, grade, class_time, tutor_name, tutor_cpf_cnpj
-        FROM patient_df
-        """
-        connection.execute(sql)
-        log.info(f"APP-LOGIC: Successfully inserted patient with ID {patient.id}.")
-    except Exception:
-        log.error(
-            f"APP-LOGIC: Failed to add patient '{getattr(patient.info, 'name', 'unknown')}'.",
-            exc_info=True,
+        insert_model(
+            connection,
+            "patients",
+            patient_field_map(patient),
         )
+        logfire.info(f"Inserted patient with ID {patient.id}")
+    except Exception:
+        logfire.error(f"Failed to insert patient with ID {patient.id}", exc_info=True)
         raise
+
+
+def _fetch_patient_row(
+    connection: duckdb.DuckDBPyConnection, patient_id: UUID
+) -> tuple[Any, ...] | None:
+    sql = "SELECT * FROM patients WHERE id = ?;"
+    return connection.execute(sql, (patient_id,)).fetchone()  # type: ignore
 
 
 def get_by_id(connection: duckdb.DuckDBPyConnection, patient_id: UUID) -> Patient:
@@ -95,19 +94,16 @@ def get_by_id(connection: duckdb.DuckDBPyConnection, patient_id: UUID) -> Patien
     Returns a Pydantic model instance, reconstructing nested fields.
     """
     try:
-        log.info(f"APP-LOGIC: Attempting to retrieve patient with ID {patient_id}.")
-        sql = "SELECT * FROM patients WHERE id = ?;"
-        result = connection.execute(sql, (patient_id,)).fetchone()  # type: ignore
-        if result is None:
-            log.warning(f"APP-LOGIC: No patient found with ID {patient_id}.")
+        logfire.info(f"APP-LOGIC: Attempting to retrieve patient with ID {patient_id}.")
+        row = _fetch_patient_row(connection, patient_id)
+        if row is None:
+            logfire.warning(f"APP-LOGIC: No patient found with ID {patient_id}.")
             raise ValueError(f"No patient found with ID {patient_id}.")
-
         columns = [
             desc[1]
             for desc in connection.execute("PRAGMA table_info('patients')").fetchall()
         ]
-
-        row_dict: dict[str, Any] = dict(zip(columns, result))  # type: ignore
+        row_dict: dict[str, Any] = dict(zip(columns, row))  # type: ignore
         # Reconstruct nested models
         info = PatientInfo(
             name=row_dict["name"],
@@ -137,12 +133,12 @@ def get_by_id(connection: duckdb.DuckDBPyConnection, patient_id: UUID) -> Patien
             contract=row_dict["contract"],
             child=child,
         )
-        log.info(
+        logfire.info(
             f"APP-LOGIC: Successfully retrieved patient '{patient.info.name}' with ID {patient.id}."
         )
         return patient
     except Exception:
-        log.error(
+        logfire.error(
             f"APP-LOGIC: Failed to retrieve patient with ID {patient_id}.",
             exc_info=True,
         )
@@ -209,7 +205,7 @@ def get_all(
     Returns a list of Pydantic model instances, reconstructing nested fields.
     """
     try:
-        log.info("APP-LOGIC: Attempting to retrieve all patients.")
+        logfire.info("APP-LOGIC: Attempting to retrieve all patients.")
         sql = "SELECT * FROM patients ORDER BY name, status DESC;"
         if status:
             sql = f"SELECT * FROM patients WHERE status = '{status}' ORDER BY name, status DESC;"
@@ -217,11 +213,11 @@ def get_all(
             sql = "SELECT * FROM patients WHERE status != 'inactive' ORDER BY name, status DESC;"
         results = connection.execute(sql).fetchall()  # type: ignore
         if not results:
-            log.warning("APP-LOGIC: No patients found in the database.")
+            logfire.warning("APP-LOGIC: No patients found in the database.")
             return []
         patients: list[Patient] = [_make_patient_from_(row) for row in results]
-        log.info(f"APP-LOGIC: Successfully retrieved {len(patients)} patients.")
+        logfire.info(f"APP-LOGIC: Successfully retrieved {len(patients)} patients.")
         return patients
     except Exception:
-        log.error("APP-LOGIC: Failed to retrieve all patients.", exc_info=True)
+        logfire.error("APP-LOGIC: Failed to retrieve all patients.", exc_info=True)
         raise

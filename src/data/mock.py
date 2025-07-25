@@ -1,9 +1,8 @@
 from datetime import date, time
 
 from data import appointment, patient
-from data.models import (
-    Appointment,
-    AppointmentStatus,
+from data.models.appointment_models import Appointment, AppointmentStatus
+from data.models.patient_models import (
     Child,
     ClassTime,
     Patient,
@@ -69,14 +68,12 @@ def get_appointments(patients: list[Patient]) -> list[Appointment]:
     return [
         Appointment(
             patient_id=patients[0].id,
-            patient_name=patients[0].info.name,
             appointment_date=date.today(),
             appointment_time=time(14, 30),
             status=AppointmentStatus.DONE,
         ),
         Appointment(
             patient_id=patients[1].id,
-            patient_name=patients[1].info.name,
             appointment_date=date.today(),
             appointment_time=time(15, 30),
             duration=90,

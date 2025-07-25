@@ -1,11 +1,12 @@
 import datetime
 import logging
+from typing import Any
 from uuid import UUID
 
 import duckdb
-import pandas as pd
 
-from data.models import MonthlyInvoice
+from data.db_utils import insert_model
+from data.models.invoice_models import MonthlyInvoice
 from utils.helpers import get_last_day_of_month
 
 log = logging.getLogger("TestLogger")
@@ -42,33 +43,15 @@ def create_monthly_invoices_table(connection: duckdb.DuckDBPyConnection) -> None
 
 
 def insert(connection: duckdb.DuckDBPyConnection, invoice: MonthlyInvoice) -> UUID:
-    """
-    Adds a new monthly invoice to the 'monthly_invoices' table.
-    """
     try:
-        log.info(
-            f"APP-LOGIC: Attempting to add monthly invoice for patient ID {invoice.patient_id}."
+        field_map = invoice.model_dump()
+        field_map.pop("appointment_dates")
+        field_map.pop("free_sessions")
+        insert_model(
+            connection,
+            "monthly_invoices",
+            field_map,
         )
-        invoice_df = pd.DataFrame([invoice.model_dump()])
-        connection.register("invoice_df", invoice_df)
-
-        sql = """
-        INSERT OR REPLACE INTO monthly_invoices 
-        SELECT 
-            id, 
-            patient_id, 
-            invoice_month, 
-            invoice_year, 
-            session_price, 
-            sessions_completed, 
-            sessions_to_recover, 
-            payment_status, 
-            nf_number, 
-            payment_date,
-            total
-        FROM invoice_df
-        """
-        connection.execute(sql)
         log.info(
             f"APP-LOGIC: Successfully inserted monthly invoice with ID {invoice.id}."
         )
@@ -79,6 +62,13 @@ def insert(connection: duckdb.DuckDBPyConnection, invoice: MonthlyInvoice) -> UU
             exc_info=True,
         )
         raise
+
+
+def _fetch_invoice_row(
+    connection: duckdb.DuckDBPyConnection, invoice_id: UUID
+) -> tuple[Any, ...] | None:
+    sql = "SELECT * FROM monthly_invoices WHERE id = ?;"
+    return connection.execute(sql, (invoice_id,)).fetchone()  # type: ignore
 
 
 def get_by_id(
@@ -92,15 +82,12 @@ def get_by_id(
         log.info(
             f"APP-LOGIC: Attempting to retrieve monthly invoice with ID {invoice_id}."
         )
-        sql = "SELECT * FROM monthly_invoices WHERE id = ?;"
-        result = connection.execute(sql, (invoice_id,)).fetchone()  # type: ignore
-
-        if result is None:
+        row = _fetch_invoice_row(connection, invoice_id)
+        if row is None:
             log.warning(f"APP-LOGIC: No invoice found with ID {invoice_id}.")
             raise ValueError(f"No invoice found with ID {invoice_id}.")
-
         invoice = MonthlyInvoice(
-            **{k: v for k, v in zip(MonthlyInvoice.model_fields.keys(), result)}  # type: ignore
+            **{k: v for k, v in zip(MonthlyInvoice.model_fields.keys(), row)}  # type: ignore
         )
         log.info(
             f"APP-LOGIC: Successfully retrieved monthly invoice with ID {invoice.id}."
