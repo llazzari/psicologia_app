@@ -3,20 +3,17 @@ from uuid import UUID
 import numpy as np
 import streamlit as st
 
-from data.models import (
-    DOCUMENT_CATEGORY_PT,
+from data.models.document_models import (
     Document,
     DocumentCategory,
-    DocumentContent,
-    Patient,
 )
-from service import llm
-from service.documents_manager import get_all_documents_for, insert_document
+from data.models.patient_models import Patient
+from service.documents_manager import get_all_documents_for
 from service.patient_manager import get_patient_by_id
 
 
-async def doc_editor() -> None:
-    doc = st.session_state["doc"]
+def doc_editor() -> None:
+    doc: Document = st.session_state["doc"]
 
     st.title("Editar documento")
 
@@ -27,7 +24,6 @@ async def doc_editor() -> None:
         doc.category = st.selectbox(
             "Categoria",
             options=DocumentCategory,
-            format_func=lambda category: DOCUMENT_CATEGORY_PT[category].capitalize(),
             index=list(DocumentCategory).index(doc.category),
         )
 
@@ -39,9 +35,7 @@ async def doc_editor() -> None:
             user_input = st.text_area(
                 "Observações",
                 height=200,
-                value=st.session_state[f"obs_{doc.id}"]
-                if f"obs_{doc.id}" in st.session_state
-                else "",
+                value=st.session_state.get(f"obs_{doc.id}", ""),
                 key=f"obs_{doc.id}",
             )
             btn_generate = st.form_submit_button(
@@ -49,34 +43,32 @@ async def doc_editor() -> None:
                 icon=":material/text_fields_alt:",
             )
             if btn_generate:
-                if user_input:
-                    ai_content: DocumentContent = await llm.generate_content(
-                        doc, user_input
-                    )
-                    st.session_state[f"ai_{doc.id}"] = ai_content.content
-                    # Optionally append to document content
-                    st.session_state[f"content_{doc.id}"] += "\n\n" + ai_content.content
-
+                pass
+                # if user_input:
+                # ai_content = generate(user_input, doc.category)
+                # ai_content = llm.generate_content(doc, user_input)
+                # st.session_state[f"ai_{doc.id}"] = ai_content
     with col_ai:
-        st.markdown("Prontuário gerado por IA")
+        st.markdown("Documento gerado por IA")
         if st.session_state.get(f"ai_{doc.id}"):
             st.markdown(st.session_state[f"ai_{doc.id}"])
 
+    # Render the form for editing the content fields
     with st.form(key=f"form_{doc.id}_content", clear_on_submit=False):
-        doc.content.content = st.text_area(
-            "Prontuário completo",
+        st.text_area(
+            f"{doc.category.capitalize()} completo",
             key=f"content_{doc.id}",
             height=400,
-            value=st.session_state[f"content_{doc.id}"]
-            if f"content_{doc.id}" in st.session_state
-            else doc.content.content,
+            value=st.session_state.get(f"content_{doc.id}", ""),
+            help="O conteúdo do documento completo a ser salvo.",
         )
         btn_save = st.form_submit_button(
             "Salvar",
             icon=":material/save:",
         )
         if btn_save:
-            insert_document(doc)
+            # doc.content = st.session_state.get(f"content_{doc.id}", doc.content)
+            # insert_document(doc)
             st.toast("Documento salvo com sucesso!", icon=":material/check:")
 
 
@@ -113,7 +105,7 @@ def display_patient_docs(patient_id: UUID) -> None:
         np.unique([doc.category for doc in all_patient_docs])
     )
     for doc_category in categories:
-        with st.expander(f"**{DOCUMENT_CATEGORY_PT[doc_category].capitalize()}**"):
+        with st.expander(f"**{doc_category.value.capitalize()}**"):
             docs: list[Document] = [
                 doc for doc in all_patient_docs if doc.category == doc_category
             ]
