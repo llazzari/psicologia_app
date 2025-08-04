@@ -1437,6 +1437,19 @@ wheels = [
 ]
 
 [[package]]
+name = "llama-index-llms-mistralai"
+version = "0.6.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "llama-index-core" },
+    { name = "mistralai" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/de/af/17f0c89b3408883e1654b4a1c47a69a2b509ea66f94e47cc397c2ab07cf0/llama_index_llms_mistralai-0.6.1.tar.gz", hash = "sha256:2e8d5b451ae93619891b84c821ef7d3506aea6e2db8f1b923946d283537bf8c0", size = 8486 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/22/0a/d57c7230895042cd50c8f23c7bf31464348c8e1a7988a99a7f81a041cd1d/llama_index_llms_mistralai-0.6.1-py3-none-any.whl", hash = "sha256:2d7fe37837d5c5f1d490a6b4e2577938b3b9027c9eeb6499d5f6ae7a6a9aebc3", size = 8576 },
+]
+
+[[package]]
 name = "llama-index-llms-openai"
 version = "0.4.7"
 source = { registry = "https://pypi.org/simple" }
@@ -2511,6 +2524,7 @@ dependencies = [
     { name = "hypothesis" },
     { name = "llama-index" },
     { name = "llama-index-embeddings-huggingface" },
+    { name = "llama-index-llms-mistralai" },
     { name = "llama-index-vector-stores-chroma" },
     { name = "logfire" },
     { name = "markdown" },
@@ -2537,6 +2551,7 @@ requires-dist = [
     { name = "hypothesis", specifier = ">=6.135.7" },
     { name = "llama-index", specifier = ">=0.12.51" },
     { name = "llama-index-embeddings-huggingface", specifier = ">=0.5.5" },
+    { name = "llama-index-llms-mistralai", specifier = ">=0.6.1" },
     { name = "llama-index-vector-stores-chroma", specifier = ">=0.4.2" },
     { name = "logfire", specifier = ">=4.0.0" },
     { name = "markdown", specifier = ">=3.8.2" },

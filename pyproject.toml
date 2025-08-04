@@ -12,6 +12,7 @@ dependencies = [
     "hypothesis>=6.135.7",
     "llama-index>=0.12.51",
     "llama-index-embeddings-huggingface>=0.5.5",
+    "llama-index-llms-mistralai>=0.6.1",
     "llama-index-vector-stores-chroma>=0.4.2",
     "logfire>=4.0.0",
     "markdown>=3.8.2",
