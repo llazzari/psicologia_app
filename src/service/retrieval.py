@@ -1,84 +1,231 @@
 from pathlib import Path
 
-from haystack import Document, Pipeline
-from haystack.components.embedders import SentenceTransformersTextEmbedder
-from haystack.components.retrievers import InMemoryEmbeddingRetriever
-from haystack.document_stores.in_memory import InMemoryDocumentStore
+import chromadb
+import dotenv
+from llama_index.core import (
+    Settings,
+    SimpleDirectoryReader,
+    StorageContext,
+    VectorStoreIndex,
+)
+from llama_index.core.prompts import PromptTemplate
+from llama_index.core.query_engine import RetrieverQueryEngine
+from llama_index.core.response_synthesizers import (
+    ResponseMode,
+    get_response_synthesizer,  # type: ignore
+)
+from llama_index.core.retrievers import VectorIndexRetriever
+from llama_index.embeddings.huggingface import HuggingFaceEmbedding  # type: ignore
+from llama_index.llms.mistralai import MistralAI  # type: ignore
+from llama_index.vector_stores.chroma import ChromaVectorStore  # type: ignore
 
-from data.models.document_models import DocumentCategory
-from utils.helpers import read_file
+config = dotenv.dotenv_values(".env")
+MISTRAL_API_KEY = config.get("MISTRAL_API_KEY")
+if not MISTRAL_API_KEY:
+    raise ValueError("MISTRAL_API_KEY is not set")
 
-# Map each document category to its guideline/template file(s)
-DOCUMENT_GUIDELINE_MAP = {
-    DocumentCategory.DECLARATION: ["CFP_resolucao-6-2019.pdf"],
-    DocumentCategory.PSYCHOLOGICAL_CERTIFICATE: ["CFP_resolucao-6-2019.pdf"],
-    DocumentCategory.PSYCHOLOGICAL_REPORT: ["CFP_resolucao-6-2019.pdf"],
-    DocumentCategory.MULTIDISCIPLINARY_REPORT: ["CFP_resolucao-6-2019.pdf"],
-    DocumentCategory.PSYCHOLOGICAL_EVALUATION_REPORT: ["CFP_resolucao-6-2019.pdf"],
-    DocumentCategory.PSYCHOLOGICAL_OPINION: ["CFP_resolucao-6-2019.pdf"],
-    DocumentCategory.PRONTUARY: ["CFP_resolucao-5-2025.pdf"],
-    DocumentCategory.ANAMNESIS: ["anamnesis.md"],
-    DocumentCategory.BUDGET: ["budget.md"],
-    # Add more mappings as needed
-}
+# Improved embedding model for better semantic understanding
+Settings.embed_model = HuggingFaceEmbedding(
+    model_name="BAAI/bge-large-en-v1.5",  # Larger model for better embeddings
+    device="cuda",  # Change to "cuda" if you have GPU
+)
 
-# Cache document stores per category
-document_stores: dict[DocumentCategory, InMemoryDocumentStore] = {}
+# Configure LLM with better parameters
+Settings.llm = MistralAI(
+    api_key=MISTRAL_API_KEY,
+    model="mistral-large-latest",  # Use the latest model for better responses
+    temperature=0.1,  # Lower temperature for more precise responses
+    max_tokens=2048,
+)
 
-# Get the absolute path to the docs directory
-DOCS_DIR = Path.cwd() / "docs"
+# Custom prompt template for better RAG responses
+CUSTOM_PROMPT_TEMPLATE = """Você é um assistente especializado em psicologia e documentação psicológica. 
+Sua tarefa é responder perguntas com base nos documentos fornecidos.
 
+Contexto dos documentos:
+{context_str}
 
-def get_document_store_for_category(
-    category: DocumentCategory,
-) -> InMemoryDocumentStore:
-    if category in document_stores:
-        return document_stores[category]
+Pergunta: {query_str}
 
-    store = InMemoryDocumentStore()
-    files = DOCUMENT_GUIDELINE_MAP.get(category, [])
-    docs: list[Document] = []
+Instruções:
+1. Responda apenas com base nas informações fornecidas no contexto
+2. Se a informação não estiver no contexto, diga "Não encontrei essa informação nos documentos disponíveis"
+3. Seja preciso e conciso
+4. Use linguagem clara e profissional
+5. Se houver múltiplas fontes, cite-as quando relevante
 
-    for file_name in files:
-        file_path = DOCS_DIR / file_name
-        if file_path.exists():
-            docs.append(Document(content=read_file(file_path)))
-
-    if docs:
-        # Embed and index documents
-        embedder = SentenceTransformersTextEmbedder(model="intfloat/e5-large-v2")
-        pipe = Pipeline()
-        pipe.add_component(instance=embedder, name="embedder")
-
-        result = pipe.run({"embedder": {"text": [doc.content for doc in docs]}})
-        embeddings: list[list[float]] = result["embedder"]["embedding"]
-        embedded_docs: list[Document] = []
-        for doc, embedding in zip(docs, embeddings):
-            doc.embedding = embedding
-            embedded_docs.append(doc)
-        store.write_documents(embedded_docs)
-
-    document_stores[category] = store
-    return store
+Resposta:"""
 
 
-def retrieve_context(
-    query: str, category: DocumentCategory, top_k: int = 5
-) -> list[str]:
-    store = get_document_store_for_category(category)
-    embedder = SentenceTransformersTextEmbedder(model="intfloat/e5-large-v2")
-    retriever = InMemoryEmbeddingRetriever(document_store=store, top_k=top_k)
-
-    pipe = Pipeline()
-    pipe.add_component(instance=embedder, name="embedder")
-    pipe.add_component(instance=retriever, name="retriever")
-    pipe.connect("embedder.embedding", "retriever.query_embedding")
-
-    result = pipe.run({"embedder": {"text": query}})
-    docs = result["retriever"]["documents"]
-
-    return [doc.content for doc in docs]
+def check_collection_status():
+    """Check if the ChromaDB collection has documents"""
+    db = chromadb.PersistentClient(path="./chroma_db")
+    try:
+        collection = db.get_collection("quickstart")
+        count = collection.count()
+        print(f"📊 Collection 'quickstart' has {count} documents")
+        return count
+    except Exception as e:
+        print(f"❌ Error accessing collection: {e}")
+        return 0
 
 
+def load_and_index_documents():
+    """Load documents from docs/CFP_resolutions folder and index them into ChromaDB"""
+    docs_path = Path("./docs/CFP_resolutions")
+
+    if not docs_path.exists():
+        print("❌ docs/CFP_resolutions folder not found!")
+        return False
+
+    print("📚 Loading documents from docs/CFP_resolutions folder...")
+
+    # Load documents using SimpleDirectoryReader
+    documents = SimpleDirectoryReader(  # type: ignore
+        input_dir=str(docs_path), recursive=True, required_exts=[".md", ".pdf", ".txt"]
+    ).load_data()
+
+    print(f"📄 Loaded {len(documents)} documents")
+
+    if not documents:
+        print("❌ No documents found in docs/CFP_resolutions folder!")
+        return False
+
+    # Initialize ChromaDB and clear existing collection
+    db = chromadb.PersistentClient(path="./chroma_db")
+
+    # Delete existing collection to start fresh
+    try:
+        db.delete_collection("quickstart")
+        print("🗑️  Deleted existing collection")
+    except Exception:
+        pass
+
+    # Create new collection
+    chroma_collection = db.create_collection("quickstart")
+    vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
+    storage_context = StorageContext.from_defaults(vector_store=vector_store)
+
+    # Create index with documents
+    print("🔧 Creating index with documents...")
+    VectorStoreIndex.from_documents(  # type: ignore
+        documents,  # type: ignore
+        storage_context=storage_context,
+        embed_model=Settings.embed_model,
+    )
+
+    print("✅ Documents indexed successfully!")
+    return True
+
+
+def create_optimized_query_engine(top_k: int = 5, alpha: float = 0.5):
+    """Create an optimized query engine with configurable parameters"""
+
+    db = chromadb.PersistentClient(path="./chroma_db")
+
+    chroma_collection = db.get_or_create_collection("quickstart")
+
+    vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
+    storage_context = StorageContext.from_defaults(vector_store=vector_store)
+
+    # Create index with better configuration
+    index = VectorStoreIndex.from_vector_store(  # type: ignore
+        vector_store,
+        storage_context=storage_context,
+        embed_model=Settings.embed_model,
+    )
+
+    # Create retriever with optimized parameters
+    retriever = VectorIndexRetriever(
+        index=index,
+        similarity_top_k=top_k,  # Retrieve top K most similar documents
+        alpha=alpha,  # Balance between dense and sparse retrieval
+    )
+
+    # Create response synthesizer with custom prompt
+    response_synthesizer = get_response_synthesizer(
+        llm=Settings.llm,
+        response_mode=ResponseMode.COMPACT,  # More concise responses
+        structured_answer_filtering=True,  # Filter out irrelevant information
+        text_qa_template=PromptTemplate(CUSTOM_PROMPT_TEMPLATE),
+    )
+
+    # Create optimized query engine
+    return RetrieverQueryEngine(
+        retriever=retriever,
+        response_synthesizer=response_synthesizer,
+    )
+
+
+def test_query(query: str, top_k: int = 5, alpha: float = 0.5):
+    """Test a query with detailed output"""
+    print(f"🔍 Query: {query}")
+    print(f"⚙️  Config: top_k={top_k}, alpha={alpha}")
+    print("=" * 50)
+
+    query_engine = create_optimized_query_engine(top_k=top_k, alpha=alpha)
+
+    # Test retrieval separately first
+    print("🔍 Testing retrieval...")
+    retriever = query_engine.retriever
+    retrieved_nodes = retriever.retrieve(query)
+    print(f"📄 Retrieved {len(retrieved_nodes)} nodes")
+
+    if retrieved_nodes:
+        print("📚 Retrieved content:")
+        for i, node in enumerate(retrieved_nodes, 1):
+            print(f"  {i}. Score: {getattr(node, 'score', 'N/A')}")
+            print(f"     Text: {node.text[:200]}...")
+            print()
+    else:
+        print("❌ No nodes retrieved!")
+        return None
+
+    # Now test the full query
+    print("🤖 Testing full query...")
+    response = query_engine.query(query)
+    print(f"📝 Resposta: {response}")
+
+    # Print retrieved sources for debugging
+    if hasattr(response, "source_nodes") and response.source_nodes:
+        print(f"📄 Fontes: {len(response.source_nodes)} documentos recuperados")
+        print("\n📚 Documentos recuperados:")
+        for i, node in enumerate(response.source_nodes, 1):
+            score = getattr(node, "score", "N/A")
+            print(f"{i}. Score: {score}")
+            print(f"   Conteúdo: {node.text[:200]}...")
+            print()
+
+    return response
+
+
+# Test different queries and configurations
 if __name__ == "__main__":
-    print(retrieve_context("O que é um prontuário?", DocumentCategory.PRONTUARY))
+    # First, check if we have any documents
+    print("🔍 Checking collection status...")
+    doc_count = check_collection_status()
+
+    # If collection is empty, load documents
+    if doc_count == 0:
+        print("\n📚 Collection is empty. Loading documents from docs/ folder...")
+        if load_and_index_documents():
+            print("✅ Documents loaded and indexed successfully!")
+        else:
+            print("❌ Failed to load documents!")
+            exit(1)
+    else:
+        print(f"✅ Collection has {doc_count} documents")
+
+    print("\n" + "=" * 80 + "\n")
+
+    # Test queries
+    test_queries: list[str] = [
+        "Quais são os tipos de documentos psicológicos?",
+        "Como fazer um relatório psicológico?",
+        "Quais são os elementos de uma avaliação psicológica?",
+        "Como documentar uma sessão de terapia?",
+    ]
+
+    for query in test_queries:
+        test_query(query, top_k=5, alpha=0.5)
+        print("\n" + "=" * 80 + "\n")

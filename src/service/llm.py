@@ -3,7 +3,12 @@ from pydantic_ai import Agent, RunContext
 from pydantic_ai.models.mistral import MistralModel
 from pydantic_ai.providers.mistral import MistralProvider
 
-from data.models import Document, DocumentContent
+from data.models.document_models import (
+    CONTENT_MODEL_MAP,
+    Document,
+    DocumentContent,
+    ProntuaryContent,
+)
 
 MISTRAL_API_KEY = st.secrets.api_keys.mistral_api_key
 SYSTEM_PROMPT: str = """
@@ -25,24 +30,25 @@ model = MistralModel(provider=provider, model_name="mistral-small-latest")
 agent = Agent(
     model,
     system_prompt=SYSTEM_PROMPT,
-    output_type=DocumentContent,
+    output_type=type[DocumentContent],
     deps_type=Document,
 )
 
 
 @agent.system_prompt
-async def get_document_category(ctx: RunContext[Document]) -> str:
+def get_document_category(ctx: RunContext[Document]) -> str:
     """Returns the document category."""
     doc_category = ctx.deps.category
     return f"The document category is {doc_category}"
 
 
-async def generate_content(document: Document, user_input: str) -> DocumentContent:
-    print("user_input")
-    print(user_input)
-    result = await agent.run(
+def generate_content(document: Document, user_input: str) -> DocumentContent:
+    content_model: type[DocumentContent] = CONTENT_MODEL_MAP.get(
+        document.category, ProntuaryContent
+    )
+    result = agent.run_sync(
         user_input,
         deps=document,
+        output_type=content_model,  # specify the output type for the agent at call time
     )
-    print(result.output)
     return result.output
