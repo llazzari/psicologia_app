@@ -110,7 +110,7 @@ def get_by_id(connection: duckdb.DuckDBPyConnection, patient_id: UUID) -> Patien
             address=row_dict["address"],
             contact=row_dict["contact"],
             birthdate=row_dict["birthdate"],
-            gender=PatientGender(row_dict["gender"]),
+            gender=PatientGender(row_dict["gender"]) if row_dict["gender"] else None,
             cpf_cnpj=row_dict["cpf_cnpj"],
         )
         child = None
