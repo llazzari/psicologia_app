@@ -29,7 +29,7 @@ def _invoice_modal(patient_: Patient, month_invoice: MonthlyInvoice) -> None:
     with st.form("invoice_form", border=False):
         st.markdown(f"**{patient_.info.name}**")
 
-        cols = st.columns(4)
+        cols = st.columns(5)
 
         with cols[0]:
             if patient_.status == PatientStatus.IN_TESTING:
@@ -65,21 +65,34 @@ def _invoice_modal(patient_: Patient, month_invoice: MonthlyInvoice) -> None:
                     * 100
                 )
         with cols[1]:
-            month_invoice.sessions_completed = st.number_input(
+            # Update appointment_data fields
+            month_invoice.appointment_data.sessions_completed = st.number_input(
                 "Sessões realizadas",
                 min_value=0,
                 value=month_invoice.sessions_completed,
             )
         with cols[2]:
-            month_invoice.sessions_to_recover = st.number_input(
+            month_invoice.appointment_data.sessions_to_recover = st.number_input(
                 "Sessões a recuperar",
                 min_value=0,
                 value=month_invoice.sessions_to_recover,
             )
         with cols[3]:
-            month_invoice.free_sessions = st.number_input(
+            month_invoice.appointment_data.free_sessions = st.number_input(
                 "Sessões gratuitas", min_value=0, value=month_invoice.free_sessions
             )
+
+        with cols[4]:
+            month_invoice.partaking = int(
+                st.number_input(
+                    "Co-participação (R$)",
+                    min_value=0.0,
+                    step=0.01,
+                    value=float(np.round(month_invoice.partaking / 100, 2)),
+                )
+                * 100
+            )
+
         colss = st.columns(3)
         with colss[0]:
             month_invoice.payment_date = st.date_input(
@@ -121,8 +134,8 @@ def _display_invoice_metrics(
         patient_.status,
     )
 
-    col_name, col_sessions, col_prices, col_status, col_info, col_edit = st.columns(
-        [2, 1, 2, 1, 2, 1], vertical_alignment="center"
+    col_name, col_status, col_sessions, col_prices, col_info, col_edit = st.columns(
+        [1, 1, 1, 2, 2, 1], vertical_alignment="center"
     )
     with col_name:
         st.markdown(f"**{patient_.info.name}**")
@@ -141,6 +154,34 @@ def _display_invoice_metrics(
                 value=get_formatted_price(month_invoice.total),
                 help="Preço da avaliação.",
             )
+        elif month_invoice.partaking > 0:
+            col_price, col_total = st.columns(2)
+            with col_price:
+                col_price.metric(
+                    label="Preço (R$)",
+                    value=get_formatted_price(month_invoice.session_price),
+                    help="Preço da sessão.",
+                )
+                st.metric(
+                    label="Co-participação (R$)",
+                    value=get_formatted_price(month_invoice.partaking),
+                )
+            with col_total:
+                st.metric(
+                    label="Total",
+                    value=get_formatted_price(month_invoice.total),
+                    help="Valor total das sessões feitas e a recuperar. Não inclui sessões gratuitas.",
+                )
+                st.metric(
+                    label="Total da co-participação (R$)",
+                    value=get_formatted_price(
+                        month_invoice.partaking
+                        * (
+                            month_invoice.sessions_completed
+                            + month_invoice.sessions_to_recover
+                        )
+                    ),
+                )
         else:
             col_price, col_total = st.columns(2)
             col_price.metric(
@@ -174,6 +215,10 @@ def _display_invoice_metrics(
             st.markdown(f"**Sessões a recuperar**: {month_invoice.sessions_to_recover}")
             if month_invoice.free_sessions > 0:
                 st.markdown(f"**Sessões gratuitas**: {month_invoice.free_sessions}")
+            if month_invoice.partaking > 0:
+                st.markdown(
+                    f"**Co-participação**: {get_formatted_price(month_invoice.partaking)}"
+                )
 
             st.markdown(
                 f"**Datas das sessões**: {', '.join([date.strftime('%d/%m/%Y') for date in month_invoice.appointment_dates])}"
@@ -262,6 +307,12 @@ def render() -> None:
         )
         if not monthly_invoices:
             st.info("Não há dados para esse mês.")
+        else:
+            # Sort monthly invoices by patient name in alphabetical order
+            monthly_invoices.sort(
+                key=lambda invoice: get_patient_by_id(invoice.patient_id).info.name
+            )
+
         for month_invoice in monthly_invoices:
             patient_: Patient = get_patient_by_id(month_invoice.patient_id)
             _display_invoice_metrics(month_invoice, patient_)

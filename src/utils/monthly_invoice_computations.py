@@ -17,11 +17,12 @@ def get_total(
     patient_status: PatientStatus,
 ) -> int:
     if patient_status == PatientStatus.IN_TESTING:
-        return 350000  # TODO - GET IT FROM SETTINGS
+        return 280000  # TODO - GET IT FROM SETTINGS
     else:
-        return session_price * (
+        base_total = session_price * (
             sessions_completed + sessions_to_recover - free_sessions
         )
+        return base_total
 
 
 @st.cache_data(ttl=3600)

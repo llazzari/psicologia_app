@@ -1,4 +1,5 @@
 import datetime
+import json
 import logging
 from typing import Any
 from uuid import UUID
@@ -6,7 +7,7 @@ from uuid import UUID
 import duckdb
 
 from data.db_utils import insert_model
-from data.models.invoice_models import MonthlyInvoice
+from data.models.invoice_models import AppointmentData, MonthlyInvoice
 from utils.helpers import get_last_day_of_month
 
 log = logging.getLogger("TestLogger")
@@ -24,9 +25,9 @@ def create_monthly_invoices_table(connection: duckdb.DuckDBPyConnection) -> None
             patient_id UUID NOT NULL,
             invoice_month INTEGER NOT NULL,
             invoice_year INTEGER NOT NULL,
+            appointment_data JSON NOT NULL,
             session_price INTEGER NOT NULL,
-            sessions_completed INTEGER NOT NULL,
-            sessions_to_recover INTEGER NOT NULL,
+            partaking INTEGER NOT NULL DEFAULT 0,
             payment_status VARCHAR CHECK (payment_status IN ('pending', 'paid', 'overdue', 'waived')) NOT NULL,
             nf_number INTEGER,
             payment_date DATE,
@@ -34,6 +35,7 @@ def create_monthly_invoices_table(connection: duckdb.DuckDBPyConnection) -> None
         );
         """
         connection.execute(sql_command)
+
         log.info("APP-LOGIC: 'monthly_invoices' table created or already exists.")
     except Exception:
         log.error(
@@ -45,8 +47,10 @@ def create_monthly_invoices_table(connection: duckdb.DuckDBPyConnection) -> None
 def insert(connection: duckdb.DuckDBPyConnection, invoice: MonthlyInvoice) -> UUID:
     try:
         field_map = invoice.model_dump()
-        field_map.pop("appointment_dates")
-        field_map.pop("free_sessions")
+        # Remove appointment_data and add it as JSON
+        appointment_data = field_map.pop("appointment_data")
+        field_map["appointment_data"] = json.dumps(appointment_data, default=str)
+
         insert_model(
             connection,
             "monthly_invoices",
@@ -59,6 +63,38 @@ def insert(connection: duckdb.DuckDBPyConnection, invoice: MonthlyInvoice) -> UU
     except Exception:
         log.error(
             f"APP-LOGIC: Failed to add monthly invoice for patient ID {invoice.patient_id}.",
+            exc_info=True,
+        )
+        raise
+
+
+def update(connection: duckdb.DuckDBPyConnection, invoice: MonthlyInvoice) -> None:
+    """Updates an existing monthly invoice in the database."""
+    try:
+        field_map = invoice.model_dump()
+
+        # Handle appointment_data as JSON
+        appointment_data = field_map.pop("appointment_data")
+        field_map["appointment_data"] = json.dumps(appointment_data, default=str)
+
+        # Build the SET clause for UPDATE
+        set_clause = ", ".join([f"{k} = ?" for k in field_map.keys() if k != "id"])
+        values = [v for k, v in field_map.items() if k != "id"]
+        values.append(invoice.id)  # Add id for WHERE clause
+
+        sql = f"""
+            UPDATE monthly_invoices 
+            SET {set_clause}
+            WHERE id = ?;
+        """
+        connection.execute(sql, values)
+
+        log.info(
+            f"APP-LOGIC: Successfully updated monthly invoice with ID {invoice.id}."
+        )
+    except Exception:
+        log.error(
+            f"APP-LOGIC: Failed to update monthly invoice with ID {invoice.id}.",
             exc_info=True,
         )
         raise
@@ -86,9 +122,18 @@ def get_by_id(
         if row is None:
             log.warning(f"APP-LOGIC: No invoice found with ID {invoice_id}.")
             raise ValueError(f"No invoice found with ID {invoice_id}.")
-        invoice = MonthlyInvoice(
-            **{k: v for k, v in zip(MonthlyInvoice.model_fields.keys(), row)}  # type: ignore
-        )
+
+        # Parse the row data
+        field_names = [desc[0] for desc in connection.description]  # type: ignore
+        row_dict = dict(zip(field_names, row))
+
+        # Parse appointment_data from JSON
+        if row_dict.get("appointment_data"):
+            appointment_data_dict = json.loads(row_dict["appointment_data"])
+            appointment_data = AppointmentData(**appointment_data_dict)
+            row_dict["appointment_data"] = appointment_data
+
+        invoice = MonthlyInvoice(**row_dict)
         log.info(
             f"APP-LOGIC: Successfully retrieved monthly invoice with ID {invoice.id}."
         )
@@ -101,64 +146,122 @@ def get_by_id(
         raise
 
 
-def get_all_in_period(
+def get_existing_invoices_in_period(
     connection: duckdb.DuckDBPyConnection, month: int, year: int
 ) -> list[MonthlyInvoice]:
     """
-    Retrieves all monthly invoices for a given month from the 'monthly_invoices' table.
+    Retrieves existing monthly invoices for a given month from the 'monthly_invoices' table.
     Returns a list of Pydantic model instances.
     """
     try:
         log.info(
-            f"APP-LOGIC: Attempting to retrieve all invoices for month {month} and year {year}."
+            f"APP-LOGIC: Attempting to retrieve existing invoices for month {month} and year {year}."
         )
-        month_begin: datetime.date = datetime.date(year, month, 1)
-        month_end: datetime.date = get_last_day_of_month(year, month)
         sql = """
-            SELECT
-                patient_id,
-                -- Conta condicionalmente as sessões com status 'done'
-                -- COUNT(CASE WHEN status = 'done' THEN 1 END) AS sessions_completed,
-                CAST(
-                    COALESCE(
-                        SUM(CASE WHEN status = 'done' AND is_free_of_charge = false THEN duration / 45.0 ELSE 0 END), 
-                    0)
-                AS INTEGER) AS sessions_completed,
-                -- Conta condicionalmente as sessões com status 'to recover'
-                COUNT(CASE WHEN status = 'to recover' THEN 1 END) AS sessions_to_recover,
-                 -- CONTA SEPARADAMENTE AS SESSÕES GRATUITAS
-                COUNT(CASE WHEN is_free_of_charge = true THEN 1 END) AS free_sessions_count,
-                -- Agrega todas as datas de agendamento feitos em uma lista
-                COALESCE(
-                    list(appointment_date ORDER BY appointment_date ASC) FILTER (WHERE status = 'done'),
-                    []
-                ) AS completed_appointment_dates
-            FROM
-                appointments
-            WHERE
-                -- Filtra os agendamentos para um mês e ano específicos (ex: Junho de 2025)
-                appointment_date BETWEEN ? AND ?
-            GROUP BY
-                patient_id;
+            SELECT * FROM monthly_invoices 
+            WHERE invoice_month = ? AND invoice_year = ?
+            ORDER BY patient_id;
         """
-        results = connection.execute(sql, (month_begin, month_end)).fetchall()  # type: ignore
+        results = connection.execute(sql, (month, year)).fetchall()  # type: ignore
 
         if not results:
             log.warning(
-                f"APP-LOGIC: No invoices found for month {month} and year {year}."
+                f"APP-LOGIC: No existing invoices found for month {month} and year {year}."
             )
             return []
 
         invoices: list[MonthlyInvoice] = []
 
         for row in results:
-            patient_id = row[0]
-            sessions_completed = row[1]
-            sessions_to_recover = row[2]
-            free_sessions = row[3]
-            appointment_dates = [date for date in row[4] if date is not None]
+            # Parse the row data
+            field_names = [desc[0] for desc in connection.description]  # type: ignore
+            row_dict = dict(zip(field_names, row))
 
-            if not appointment_dates:
+            # Parse appointment_data from JSON
+            if row_dict.get("appointment_data"):
+                appointment_data_dict = json.loads(row_dict["appointment_data"])
+                appointment_data = AppointmentData(**appointment_data_dict)
+                row_dict["appointment_data"] = appointment_data
+
+            print(row_dict)
+            invoice = MonthlyInvoice(**row_dict)
+            invoices.append(invoice)
+
+        log.info(
+            f"APP-LOGIC: Successfully retrieved {len(invoices)} existing invoices for month {month} and year {year}."
+        )
+        return invoices
+    except Exception:
+        log.error(
+            f"APP-LOGIC: Failed to retrieve existing invoices for month {month} and year {year}.",
+            exc_info=True,
+        )
+        raise
+
+
+def get_all_in_period(
+    connection: duckdb.DuckDBPyConnection, month: int, year: int
+) -> list[MonthlyInvoice]:
+    """
+    Retrieves all monthly invoices for a given month. First checks for existing invoices
+    in the database, and only generates new ones from appointments if none exist or if
+    appointment data has changed.
+    Returns a list of Pydantic model instances.
+    """
+    try:
+        log.info(
+            f"APP-LOGIC: Attempting to retrieve all invoices for month {month} and year {year}."
+        )
+
+        # First, try to get existing invoices from the database
+        existing_invoices = get_existing_invoices_in_period(connection, month, year)
+
+        if existing_invoices:
+            log.info(
+                f"APP-LOGIC: Found {len(existing_invoices)} existing invoices for month {month} and year {year}."
+            )
+
+            # Check if appointment data has changed for any invoice
+            current_appointment_data = _get_current_appointment_data(
+                connection, month, year
+            )
+            needs_update = False
+
+            for invoice in existing_invoices:
+                current_data = current_appointment_data.get(invoice.patient_id)
+                if current_data:
+                    # The hash comparison is removed, so we just check if the data is different
+                    if current_data != invoice.appointment_data:
+                        needs_update = True
+                        break
+
+            if not needs_update:
+                log.info("APP-LOGIC: Existing invoices are up-to-date.")
+                return existing_invoices
+            else:
+                log.info(
+                    "APP-LOGIC: Appointment data has changed, regenerating invoices."
+                )
+
+        # Generate new invoices from appointments
+        log.info(
+            f"APP-LOGIC: Generating new invoices from appointments for month {month} and year {year}."
+        )
+
+        current_appointment_data = _get_current_appointment_data(
+            connection, month, year
+        )
+
+        if not current_appointment_data:
+            log.warning(
+                f"APP-LOGIC: No appointments found for month {month} and year {year}."
+            )
+            return []
+
+        invoices: list[MonthlyInvoice] = []
+
+        for patient_id, appointment_data in current_appointment_data.items():
+            if not appointment_data.appointment_dates:
                 log.warning(
                     f"APP-LOGIC: No appointments found for patient ID {patient_id} in month {month} and year {year}."
                 )
@@ -168,18 +271,15 @@ def get_all_in_period(
                 patient_id=patient_id,
                 invoice_month=month,
                 invoice_year=year,
-                appointment_dates=appointment_dates,
-                sessions_completed=sessions_completed,
-                sessions_to_recover=sessions_to_recover,
-                free_sessions=free_sessions,
+                appointment_data=appointment_data,
+                partaking=0,  # Default value for partaking
             )
 
             insert(connection, new_invoice)
-
             invoices.append(new_invoice)
 
         log.info(
-            f"APP-LOGIC: Successfully retrieved {len(invoices)} invoices for month {month} and year {year}."
+            f"APP-LOGIC: Successfully generated {len(invoices)} new invoices for month {month} and year {year}."
         )
         return invoices
     except Exception:
@@ -188,3 +288,53 @@ def get_all_in_period(
             exc_info=True,
         )
         raise
+
+
+def _get_current_appointment_data(
+    connection: duckdb.DuckDBPyConnection, month: int, year: int
+) -> dict[UUID, AppointmentData]:
+    """Get current appointment data for all patients in a given month/year."""
+    month_begin: datetime.date = datetime.date(year, month, 1)
+    month_end: datetime.date = get_last_day_of_month(year, month)
+
+    sql = """
+        SELECT
+            patient_id,
+            CAST(
+                COALESCE(
+                    SUM(CASE WHEN status = 'done' AND is_free_of_charge = false THEN duration / 45.0 ELSE 0 END), 
+                0)
+            AS INTEGER) AS sessions_completed,
+            COUNT(CASE WHEN status = 'to recover' THEN 1 END) AS sessions_to_recover,
+            COUNT(CASE WHEN is_free_of_charge = true THEN 1 END) AS free_sessions_count,
+            COALESCE(
+                list(appointment_date ORDER BY appointment_date ASC) FILTER (WHERE status = 'done'),
+                []
+            ) AS completed_appointment_dates
+        FROM
+            appointments
+        WHERE
+            appointment_date BETWEEN ? AND ?
+        GROUP BY
+            patient_id;
+    """
+
+    results = connection.execute(sql, (month_begin, month_end)).fetchall()  # type: ignore
+
+    appointment_data: dict[UUID, AppointmentData] = {}
+
+    for row in results:
+        patient_id = row[0]
+        sessions_completed = row[1]
+        sessions_to_recover = row[2]
+        free_sessions = row[3] if row[3] is not None else 0
+        appointment_dates = [date for date in row[4] if date is not None]
+
+        appointment_data[patient_id] = AppointmentData(
+            sessions_completed=sessions_completed,
+            sessions_to_recover=sessions_to_recover,
+            free_sessions=free_sessions,
+            appointment_dates=appointment_dates,
+        )
+
+    return appointment_data
