@@ -1,5 +1,6 @@
 from uuid import UUID
 
+import logfire
 import numpy as np
 import streamlit as st
 
@@ -11,9 +12,14 @@ from data.models.patient_models import Patient
 from service.documents_manager import get_all_documents_for
 from service.patient_manager import get_patient_by_id
 
+logfire.configure()
+
 
 def doc_editor() -> None:
     doc: Document = st.session_state["doc"]
+    logfire.info(
+        f"PAGE-RENDER: Opening document editor for document {doc.id} (patient: {doc.patient_id})"
+    )
 
     st.title("Editar documento")
 
@@ -67,6 +73,7 @@ def doc_editor() -> None:
             icon=":material/save:",
         )
         if btn_save:
+            logfire.info(f"USER-ACTION: User saved document {doc.id}")
             # doc.content = st.session_state.get(f"content_{doc.id}", doc.content)
             # insert_document(doc)
             st.toast("Documento salvo com sucesso!", icon=":material/check:")
@@ -77,11 +84,17 @@ def display_docs_header(patient_: Patient) -> None:
     cols = st.columns(4)
     with cols[0]:
         if st.button("Voltar para a lista de pacientes", icon=":material/arrow_back:"):
+            logfire.info(
+                f"USER-ACTION: User navigated back from patient {patient_.info.name} documents"
+            )
             st.query_params.pop("patient_id")
             st.session_state.pop("patient")
             st.rerun()
     with cols[1]:
         if st.button("Adicionar documento", icon=":material/docs:"):
+            logfire.info(
+                f"USER-ACTION: User clicked to add document for patient {patient_.info.name}"
+            )
             st.query_params["edit"] = "true"
             st.session_state["doc"] = Document(patient_id=patient_.id)
             st.rerun()
@@ -90,12 +103,16 @@ def display_docs_header(patient_: Patient) -> None:
 
 
 def display_patient_docs(patient_id: UUID) -> None:
+    logfire.info(f"PAGE-RENDER: Displaying documents for patient {patient_id}")
     st.session_state["patient"] = get_patient_by_id(patient_id)
     patient_ = st.session_state["patient"]
 
     display_docs_header(patient_)
 
     all_patient_docs: list[Document] = get_all_documents_for(patient_.id)
+    logfire.info(
+        f"DATA-FETCH: Retrieved {len(all_patient_docs)} documents for patient {patient_.info.name}"
+    )
 
     if not all_patient_docs:
         st.info("Nenhum documento encontrado para este paciente.")

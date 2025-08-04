@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Literal
 
+import logfire
 import numpy as np
 import streamlit as st
 
@@ -23,9 +24,14 @@ from utils.monthly_invoice_computations import (
     get_total_sessions,
 )
 
+logfire.configure()
+
 
 @st.dialog("Editar fatura", width="large")
 def _invoice_modal(patient_: Patient, month_invoice: MonthlyInvoice) -> None:
+    logfire.info(
+        f"USER-ACTION: Opening invoice edit modal for patient {patient_.info.name} (ID: {patient_.id})"
+    )
     with st.form("invoice_form", border=False):
         st.markdown(f"**{patient_.info.name}**")
 
@@ -243,6 +249,7 @@ def _display_invoice_metrics(
 
 
 def render() -> None:
+    logfire.info("PAGE-RENDER: Rendering monthly invoices page")
     st.set_page_config(
         layout="wide",
         page_title="Controle Financeiro",
@@ -302,12 +309,21 @@ def render() -> None:
         )
 
     with st.container(border=True):
+        logfire.info(
+            f"DATA-FETCH: Fetching monthly invoices for {chosen_month}/{chosen_year}"
+        )
         monthly_invoices: list[MonthlyInvoice] = get_monthly_invoices(
             chosen_month, chosen_year
         )
         if not monthly_invoices:
+            logfire.info(
+                f"DATA-FETCH: No invoices found for {chosen_month}/{chosen_year}"
+            )
             st.info("Não há dados para esse mês.")
         else:
+            logfire.info(
+                f"DATA-FETCH: Found {len(monthly_invoices)} invoices for {chosen_month}/{chosen_year}"
+            )
             # Sort monthly invoices by patient name in alphabetical order
             monthly_invoices.sort(
                 key=lambda invoice: get_patient_by_id(invoice.patient_id).info.name

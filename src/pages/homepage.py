@@ -1,8 +1,12 @@
+import logfire
 import streamlit as st
+
+logfire.configure()
 
 
 @st.cache_data()
 def render() -> None:
+    logfire.info("PAGE-RENDER: Rendering homepage")
     st.title("Bem-vindo(a) ao Sistema de Gerenciamento")
 
     st.markdown("""

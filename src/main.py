@@ -1,27 +1,37 @@
+import logfire
 import streamlit as st
 
 from modules import navbar
 from pages import homepage
 from service.database_manager import initialize_database
 
+logfire.configure()
+
 
 def main():
     """Main function to run the Streamlit application."""
+    logfire.info("APP-STARTUP: Starting Psicologia App")
+
     st.set_page_config(
         page_title="Sistema de Gerenciamento",
         page_icon=":material/network_intelligence:",
         layout="wide",
         initial_sidebar_state="expanded",
     )
+    logfire.info("APP-STARTUP: Streamlit page configuration set")
 
     # if not st.user.is_logged_in:
     #     if st.button("Login com Google", icon=":material/login:"):
     #         st.login("google")
 
     # else:
+    logfire.info("APP-STARTUP: Rendering navbar and homepage")
     navbar.render()
     homepage.render()
+
+    logfire.info("APP-STARTUP: Initializing database")
     initialize_database()
+    logfire.info("APP-STARTUP: Application initialization complete")
 
     # mock.insert_patients()
     # mock.insert_appointments()

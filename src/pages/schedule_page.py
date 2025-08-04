@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Any, Optional
 
+import logfire
 import streamlit as st
 from streamlit_calendar import calendar  # type: ignore
 
@@ -15,12 +16,23 @@ from service.schedule import (
     update_appointment,
 )
 
+logfire.configure()
+
 
 @st.dialog("Agende a sessão", width="large")
 def schedule_appointment(
     selected_datetime: Optional[datetime] = None,
     selected_event: Optional[dict[str, Any]] = None,
 ) -> None:
+    if selected_event:
+        logfire.info(
+            f"USER-ACTION: Opening appointment edit modal for event: {selected_event.get('id', 'unknown')}"
+        )
+    elif selected_datetime:
+        logfire.info(
+            f"USER-ACTION: Opening appointment creation modal for datetime: {selected_datetime}"
+        )
+
     if not selected_datetime and not selected_event:
         raise ValueError("selected_datetime and selected_event must be provided")
 
@@ -101,6 +113,9 @@ def schedule_appointment(
         submitted = st.form_submit_button("Salvar", type="primary")
 
         if submitted:
+            logfire.info(
+                f"USER-ACTION: User saved appointment {appt.id} for patient {appt.patient_id}"
+            )
             update_appointment(appt)
             st.toast("Alterações salvas.", icon=":material/event_available:")
             st.session_state.event = appt
@@ -148,6 +163,7 @@ CUSTOM_CSS: str = """
 
 
 def render() -> None:
+    logfire.info("PAGE-RENDER: Rendering schedule page")
     st.set_page_config(
         layout="wide",
         page_title="Agendamento Semanal",
@@ -159,7 +175,9 @@ def render() -> None:
     navbar.render()
 
     # Always get the latest events just before rendering the calendar
+    logfire.info("DATA-FETCH: Loading calendar events for schedule page")
     calendar_events: list[dict[str, Any]] = get_calendar_events()
+    logfire.info(f"DATA-FETCH: Loaded {len(calendar_events)} calendar events")
 
     calendar_callback = calendar(
         events=calendar_events,

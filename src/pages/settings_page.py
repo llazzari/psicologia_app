@@ -1,8 +1,11 @@
+import logfire
 import streamlit as st
 
 from data.models.psychologist_settings_models import PsychologistSettings
 from modules import navbar
 from service import settings_service
+
+logfire.configure()
 
 
 def _price_as_float(price_in_cents: int) -> float:
@@ -16,6 +19,7 @@ def _price_in_cents(price: float) -> int:
 
 
 def render():
+    logfire.info("PAGE-RENDER: Rendering settings page")
     st.set_page_config(
         page_icon=":material/network_intelligence:",
         layout="wide",
@@ -29,8 +33,10 @@ def render():
     email = st.user.get("email", None)
 
     if not email:
+        logfire.error("SETTINGS-ERROR: User email not found")
         raise ValueError("User email not found.")
 
+    logfire.info(f"SETTINGS-OP: Loading settings for user email: {email}")
     current_settings: PsychologistSettings = settings_service.get_by_(email)  # type: ignore
 
     with st.form("settings_form"):
@@ -64,6 +70,7 @@ def render():
         submitted = st.form_submit_button("Salvar configurações")
 
         if submitted:
+            logfire.info(f"USER-ACTION: User updated settings for email: {email}")
             updated_settings = PsychologistSettings(
                 user_email=email,  # type: ignore
                 psychologist_name=name,

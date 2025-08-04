@@ -1,3 +1,4 @@
+import logfire
 import streamlit as st
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.models.mistral import MistralModel
@@ -9,6 +10,8 @@ from data.models.document_models import (
     DocumentContent,
     ProntuaryContent,
 )
+
+logfire.configure()
 
 MISTRAL_API_KEY = st.secrets.api_keys.mistral_api_key
 SYSTEM_PROMPT: str = """
@@ -43,12 +46,26 @@ def get_document_category(ctx: RunContext[Document]) -> str:
 
 
 def generate_content(document: Document, user_input: str) -> DocumentContent:
+    logfire.info(
+        f"LLM-OP: Generating content for document {document.id}, category: {document.category.value}"
+    )
     content_model: type[DocumentContent] = CONTENT_MODEL_MAP.get(
         document.category, ProntuaryContent
     )
-    result = agent.run_sync(
-        user_input,
-        deps=document,
-        output_type=content_model,  # specify the output type for the agent at call time
-    )
-    return result.output
+    logfire.info(f"LLM-OP: Using content model: {content_model.__name__}")
+
+    try:
+        result = agent.run_sync(
+            user_input,
+            deps=document,
+            output_type=content_model,  # specify the output type for the agent at call time
+        )
+        logfire.info(
+            f"LLM-OP: Successfully generated content for document {document.id}"
+        )
+        return result.output
+    except Exception as e:
+        logfire.error(
+            f"LLM-OP: Failed to generate content for document {document.id}: {str(e)}"
+        )
+        raise

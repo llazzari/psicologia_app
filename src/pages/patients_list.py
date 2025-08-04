@@ -1,6 +1,7 @@
 from datetime import date
 from typing import Optional
 
+import logfire
 import streamlit as st
 
 from data.models.patient_models import (
@@ -15,9 +16,17 @@ from data.models.patient_models import (
 )
 from service.patient_manager import get_all_patients, update_patient_on_db
 
+logfire.configure()
+
 
 @st.dialog("Adicionar/editar dados do paciente", width="large")
 def _patient_modal(patient_: Optional[Patient] = None) -> None:
+    if patient_ is None:
+        logfire.info("USER-ACTION: Opening modal to add new patient")
+    else:
+        logfire.info(
+            f"USER-ACTION: Opening modal to edit patient {patient_.info.name} (ID: {patient_.id})"
+        )
     if patient_ is None:
         patient_ = Patient(info=PatientInfo(name=""))  # uses default values
         is_child = (
@@ -201,6 +210,7 @@ def _display_patients():
 
 
 def render() -> None:
+    logfire.info("PAGE-RENDER: Rendering patients list page")
     st.title("Gerenciamento de Pacientes")
     st.markdown(
         "Visualize e gerencie todos os pacientes cadastrados, organizados por status."
@@ -220,9 +230,14 @@ def render() -> None:
     st.divider()
 
     if "all_patients" not in st.session_state:
+        logfire.info("DATA-FETCH: Loading all patients from database")
         st.session_state["all_patients"] = get_all_patients()
+        logfire.info(
+            f"DATA-FETCH: Loaded {len(st.session_state['all_patients'])} patients"
+        )
 
     if st.button("Adicionar paciente", icon=":material/person_add:"):
+        logfire.info("USER-ACTION: User clicked to add new patient")
         _patient_modal()
 
     _display_patients()

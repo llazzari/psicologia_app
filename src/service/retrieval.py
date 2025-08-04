@@ -2,6 +2,7 @@ from pathlib import Path
 
 import chromadb
 import dotenv
+import logfire
 from llama_index.core import (
     Settings,
     SimpleDirectoryReader,
@@ -19,10 +20,15 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding  # type: ign
 from llama_index.llms.mistralai import MistralAI  # type: ignore
 from llama_index.vector_stores.chroma import ChromaVectorStore  # type: ignore
 
+logfire.configure()
+
 config = dotenv.dotenv_values(".env")
 MISTRAL_API_KEY = config.get("MISTRAL_API_KEY")
 if not MISTRAL_API_KEY:
+    logfire.error("RETRIEVAL-ERROR: MISTRAL_API_KEY is not set")
     raise ValueError("MISTRAL_API_KEY is not set")
+
+logfire.info("RETRIEVAL-SETUP: Initializing retrieval service with Mistral API")
 
 # Improved embedding model for better semantic understanding
 Settings.embed_model = HuggingFaceEmbedding(
@@ -59,36 +65,40 @@ Resposta:"""
 
 def check_collection_status():
     """Check if the ChromaDB collection has documents"""
+    logfire.info("RETRIEVAL-OP: Checking ChromaDB collection status")
     db = chromadb.PersistentClient(path="./chroma_db")
     try:
         collection = db.get_collection("quickstart")
         count = collection.count()
-        print(f"📊 Collection 'quickstart' has {count} documents")
+        logfire.info(f"RETRIEVAL-OP: Collection 'quickstart' has {count} documents")
         return count
     except Exception as e:
-        print(f"❌ Error accessing collection: {e}")
+        logfire.error(f"RETRIEVAL-ERROR: Error accessing collection: {e}")
         return 0
 
 
 def load_and_index_documents():
     """Load documents from docs/CFP_resolutions folder and index them into ChromaDB"""
+    logfire.info("RETRIEVAL-OP: Starting document loading and indexing process")
     docs_path = Path("./docs/CFP_resolutions")
 
     if not docs_path.exists():
-        print("❌ docs/CFP_resolutions folder not found!")
+        logfire.error("RETRIEVAL-ERROR: docs/CFP_resolutions folder not found!")
         return False
 
-    print("📚 Loading documents from docs/CFP_resolutions folder...")
+    logfire.info("RETRIEVAL-OP: Loading documents from docs/CFP_resolutions folder")
 
     # Load documents using SimpleDirectoryReader
     documents = SimpleDirectoryReader(  # type: ignore
         input_dir=str(docs_path), recursive=True, required_exts=[".md", ".pdf", ".txt"]
     ).load_data()
 
-    print(f"📄 Loaded {len(documents)} documents")
+    logfire.info(f"RETRIEVAL-OP: Loaded {len(documents)} documents")
 
     if not documents:
-        print("❌ No documents found in docs/CFP_resolutions folder!")
+        logfire.error(
+            "RETRIEVAL-ERROR: No documents found in docs/CFP_resolutions folder!"
+        )
         return False
 
     # Initialize ChromaDB and clear existing collection
