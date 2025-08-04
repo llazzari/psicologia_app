@@ -28,7 +28,9 @@ def connect(db_path: str) -> duckdb.DuckDBPyConnection:
     """
     try:
         log.info(f"APP-LOGIC: Attempting to connect to database at '{db_path}'")
-        connection = duckdb.connect(database=db_path, read_only=False)  # type: ignore
+        connection: duckdb.DuckDBPyConnection = duckdb.connect(  # type: ignore
+            database=db_path, read_only=False
+        )
         log.info("APP-LOGIC: Database connection successful.")
     except Exception:
         log.error("APP-LOGIC: Failed to connect to database.", exc_info=True)
