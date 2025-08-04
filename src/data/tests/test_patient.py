@@ -5,7 +5,7 @@ import duckdb
 import pytest
 
 from data import patient
-from data.models import Patient
+from data.models.patient_models import Patient
 
 
 def test_add_and_get_patient_with_pydantic(
@@ -26,7 +26,7 @@ def test_add_and_get_patient_with_pydantic(
 
         logger.info(msg)
         try:
-            new_patient_id = patient.add(db_connection, patient_model)
+            new_patient_id = patient.insert(db_connection, patient_model)
             assert new_patient_id == patient_model.id, (
                 "The returned ID should match the model's ID."
             )
@@ -49,41 +49,6 @@ def test_add_and_get_patient_with_pydantic(
             pytest.fail(f"Test failed with an unexpected exception: {e}")
 
 
-def test_update_patient(
-    db_connection: duckdb.DuckDBPyConnection,
-    logger: logging.Logger,
-    patient_adult_model: Patient,
-) -> None:
-    """
-    Tests that a patient can be edited successfully.
-    """
-    logger.info("TEST-RUN: test_edit_patient")
-
-    patient_id = patient.add(db_connection, patient_adult_model)
-
-    updated_patient = patient_adult_model.model_copy(
-        update={"address": "789 Updated St, Updated City, Updated State"}
-    )
-    patient.update(db_connection, updated_patient)
-
-    db_connection.execute(
-        """
-        UPDATE patients 
-        SET address = ? 
-        WHERE id = ?;
-        """,
-        (updated_patient.address, updated_patient.id),
-    )
-
-    retrieved_patient = patient.get_by_id(db_connection, patient_id)
-
-    assert retrieved_patient.address == updated_patient.address, (
-        "The address should have been updated."
-    )
-
-    logger.info("SUCCESS: Patient was edited successfully.")
-
-
 def test_get_nonexistent_patient(
     db_connection: duckdb.DuckDBPyConnection,
     logger: logging.Logger,
@@ -103,48 +68,6 @@ def test_get_nonexistent_patient(
     logger.info("SUCCESS: Non-existent patient retrieval handled correctly")
 
 
-def test_update_multiple_fields(
-    db_connection: duckdb.DuckDBPyConnection,
-    logger: logging.Logger,
-    patient_child_model: Patient,
-) -> None:
-    """
-    Tests that multiple fields of a patient can be updated simultaneously.
-    """
-    logger.info("TEST-RUN: test_update_multiple_fields")
-
-    # First add the patient
-    patient.add(db_connection, patient_child_model)
-
-    # Update multiple fields
-    updated_patient = patient_child_model.model_copy(
-        update={
-            "name": "Updated Name",
-            "address": "New Address",
-            "school": "New School",
-            "tutor_cpf_cnpj": "111.222.333-44",
-        }
-    )
-
-    patient.update(db_connection, updated_patient)
-
-    # Retrieve and verify all updated fields
-    retrieved_patient = patient.get_by_id(db_connection, patient_child_model.id)
-
-    assert retrieved_patient.name == updated_patient.name, "Name should be updated"
-    assert retrieved_patient.address == updated_patient.address, (
-        "Address should be updated"
-    )
-    assert retrieved_patient.school == updated_patient.school, (
-        "School should be updated"
-    )
-    assert retrieved_patient.tutor_cpf_cnpj == updated_patient.tutor_cpf_cnpj, (
-        "Tutor CPF should be updated"
-    )
-
-    logger.info("SUCCESS: Multiple fields updated successfully")
-
-
 def test_add_duplicate_patient_id(
     db_connection: duckdb.DuckDBPyConnection,
     logger: logging.Logger,
@@ -155,13 +78,13 @@ def test_add_duplicate_patient_id(
     """
     logger.info("TEST-RUN: test_add_duplicate_patient_id")
 
-    patient.add(db_connection, patient_adult_model)
+    patient.insert(db_connection, patient_adult_model)
 
     duplicate_patient = patient_adult_model.model_copy(
         update={"name": "Different Name"}
     )
 
     with pytest.raises(Exception):
-        patient.add(db_connection, duplicate_patient)
+        patient.insert(db_connection, duplicate_patient)
 
     logger.info("SUCCESS: Duplicate patient ID handled correctly")

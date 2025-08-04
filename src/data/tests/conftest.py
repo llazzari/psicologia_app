@@ -7,7 +7,7 @@ import duckdb
 import pytest
 
 from data import database
-from data.models import Patient
+from data.models.patient_models import Patient
 
 
 @pytest.fixture(scope="session")

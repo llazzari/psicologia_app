@@ -6,7 +6,8 @@ import duckdb
 import pytest
 
 from data import monthly_invoice
-from data.models import MonthlyInvoice, Patient
+from data.models.invoice_models import MonthlyInvoice
+from data.models.patient_models import Patient
 
 
 @pytest.fixture
