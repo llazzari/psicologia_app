@@ -1,22 +1,22 @@
 import datetime
 import json
-import logging
 from typing import Any
 from uuid import UUID
 
 import duckdb
+import logfire
 
 from data.db_utils import insert_model
 from data.models.invoice_models import AppointmentData, MonthlyInvoice
 from utils.helpers import get_last_day_of_month
 
-log = logging.getLogger("TestLogger")
+logfire.configure()
 
 
 def create_monthly_invoices_table(connection: duckdb.DuckDBPyConnection) -> None:
     """Creates the 'monthly_invoices' table with the expanded schema."""
     try:
-        log.info(
+        logfire.info(
             "APP-LOGIC: Attempting to create 'monthly_invoices' table with new schema."
         )
         sql_command = """
@@ -36,9 +36,9 @@ def create_monthly_invoices_table(connection: duckdb.DuckDBPyConnection) -> None
         """
         connection.execute(sql_command)
 
-        log.info("APP-LOGIC: 'monthly_invoices' table created or already exists.")
+        logfire.info("APP-LOGIC: 'monthly_invoices' table created or already exists.")
     except Exception:
-        log.error(
+        logfire.error(
             "APP-LOGIC: Failed to create 'monthly_invoices' table.", exc_info=True
         )
         raise
@@ -56,12 +56,12 @@ def insert(connection: duckdb.DuckDBPyConnection, invoice: MonthlyInvoice) -> UU
             "monthly_invoices",
             field_map,
         )
-        log.info(
+        logfire.info(
             f"APP-LOGIC: Successfully inserted monthly invoice with ID {invoice.id}."
         )
         return invoice.id
     except Exception:
-        log.error(
+        logfire.error(
             f"APP-LOGIC: Failed to add monthly invoice for patient ID {invoice.patient_id}.",
             exc_info=True,
         )
@@ -89,11 +89,11 @@ def update(connection: duckdb.DuckDBPyConnection, invoice: MonthlyInvoice) -> No
         """
         connection.execute(sql, values)
 
-        log.info(
+        logfire.info(
             f"APP-LOGIC: Successfully updated monthly invoice with ID {invoice.id}."
         )
     except Exception:
-        log.error(
+        logfire.error(
             f"APP-LOGIC: Failed to update monthly invoice with ID {invoice.id}.",
             exc_info=True,
         )

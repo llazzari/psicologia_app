@@ -1,6 +1,5 @@
-import logging
-
 import duckdb
+import logfire
 
 from data.appointment import create_appointments_table
 from data.documents import create_documents_table
@@ -10,7 +9,7 @@ from data.psychologist_settings import create_psychologist_settings_table
 
 DB_PATH: str = "data/psychologist_app.db"
 
-log = logging.getLogger("TestLogger")
+logfire.configure()
 
 
 def connect(db_path: str) -> duckdb.DuckDBPyConnection:
@@ -27,13 +26,13 @@ def connect(db_path: str) -> duckdb.DuckDBPyConnection:
         duckdb.DuckDBPyConnection: A connection object to the database.
     """
     try:
-        log.info(f"APP-LOGIC: Attempting to connect to database at '{db_path}'")
+        logfire.info(f"APP-LOGIC: Attempting to connect to database at '{db_path}'")
         connection: duckdb.DuckDBPyConnection = duckdb.connect(  # type: ignore
             database=db_path, read_only=False
         )
-        log.info("APP-LOGIC: Database connection successful.")
+        logfire.info("APP-LOGIC: Database connection successful.")
     except Exception:
-        log.error("APP-LOGIC: Failed to connect to database.", exc_info=True)
+        logfire.error("APP-LOGIC: Failed to connect to database.", exc_info=True)
         raise Exception("Failed to connect to the database.")
 
     return connection
@@ -49,7 +48,7 @@ def initialize(connection: duckdb.DuckDBPyConnection) -> None:
     Args:
         connection (duckdb.DuckDBPyConnection): The connection object to the database.
     """
-    log.info("APP-LOGIC: Initializing database schema.")
+    logfire.info("APP-LOGIC: Initializing database schema.")
 
     create_patients_table(connection)
     create_appointments_table(connection)
@@ -57,4 +56,4 @@ def initialize(connection: duckdb.DuckDBPyConnection) -> None:
     create_documents_table(connection)
     create_psychologist_settings_table(connection)
 
-    log.info("APP-LOGIC: Database schema initialized successfully.")
+    logfire.info("APP-LOGIC: Database schema initialized successfully.")

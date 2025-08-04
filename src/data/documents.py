@@ -1,8 +1,8 @@
-import logging
 from typing import Any
 from uuid import UUID
 
 import duckdb
+import logfire
 
 from data.db_utils import insert_model
 from data.models.document_models import (
@@ -13,7 +13,7 @@ from data.models.document_models import (
     PsychologicalReportContent,
 )
 
-log = logging.getLogger("TestLogger")
+logfire.configure()
 
 CONTENT_MODEL_MAP = {
     DocumentCategory.PRONTUARY: ProntuaryContent,
@@ -38,7 +38,7 @@ def create_documents_table(db_connection: duckdb.DuckDBPyConnection) -> None:
     Create the 'documents' table in the database.
     """
     try:
-        log.info("Creating the 'documents' table in the database.")
+        logfire.info("Creating the 'documents' table in the database.")
         db_connection.execute(
             """
             CREATE TABLE IF NOT EXISTS documents (
@@ -50,9 +50,9 @@ def create_documents_table(db_connection: duckdb.DuckDBPyConnection) -> None:
             )
             """
         )
-        log.info("Table 'documents' created successfully.")
+        logfire.info("Table 'documents' created successfully.")
     except Exception:
-        log.error("Failed to create the 'documents' table.", exc_info=True)
+        logfire.error("Failed to create the 'documents' table.", exc_info=True)
         raise
 
 
@@ -63,19 +63,21 @@ def insert(connection: duckdb.DuckDBPyConnection, document: Document) -> None:
             "documents",
             document_field_map(document),
         )
-        log.info(f"Inserted document with ID {document.id}")
+        logfire.info(f"Inserted document with ID {document.id}")
     except Exception:
-        log.error(f"Failed to insert document with ID {document.id}", exc_info=True)
+        logfire.error(f"Failed to insert document with ID {document.id}", exc_info=True)
         raise
 
 
 def remove(connection: duckdb.DuckDBPyConnection, document_id: UUID) -> None:
     try:
-        log.info(f"Removing document with ID: {document_id}")
+        logfire.info(f"Removing document with ID: {document_id}")
         connection.execute("DELETE FROM documents WHERE id = ?", (document_id,))
-        log.info(f"Removed document with ID: {document_id}")
+        logfire.info(f"Removed document with ID: {document_id}")
     except Exception:
-        log.error(f"Failed to remove document with ID: {document_id}", exc_info=True)
+        logfire.error(
+            f"Failed to remove document with ID: {document_id}", exc_info=True
+        )
         raise
 
 
@@ -88,9 +90,9 @@ def _fetch_document_row(
 
 def get_by_id(connection: duckdb.DuckDBPyConnection, document_id: UUID) -> Document:
     try:
-        log.info(f"Retrieving document with ID: {document_id}")
+        logfire.info(f"Retrieving document with ID: {document_id}")
         row = _fetch_document_row(connection, document_id)
-        log.info(f"Retrieved document with ID: {document_id}")
+        logfire.info(f"Retrieved document with ID: {document_id}")
         if row is None:
             raise ValueError(f"No document found with ID {document_id}")
         # Unpack fields
@@ -106,7 +108,9 @@ def get_by_id(connection: duckdb.DuckDBPyConnection, document_id: UUID) -> Docum
             content=content,
         )
     except Exception:
-        log.error(f"Failed to retrieve document with ID: {document_id}", exc_info=True)
+        logfire.error(
+            f"Failed to retrieve document with ID: {document_id}", exc_info=True
+        )
         raise
 
 
@@ -114,13 +118,13 @@ def get_all_for_patient_id(
     connection: duckdb.DuckDBPyConnection, patient_id: UUID
 ) -> list[Document]:
     try:
-        log.info(
+        logfire.info(
             "Retrieving all documents for patient with ID: " + str(patient_id) + "."
         )
         results = connection.execute(
             "SELECT * FROM documents WHERE patient_id = ?", (str(patient_id),)
         ).fetchall()
-        log.info("Retrieved all documents for the patient.")
+        logfire.info("Retrieved all documents for the patient.")
         documents_list: list[Document] = []
         for result in results:
             id, patient_id, category, file_name, content_json = result
@@ -138,5 +142,5 @@ def get_all_for_patient_id(
             )
         return documents_list
     except Exception:
-        log.error("Failed to retrieve the patient's documents.", exc_info=True)
+        logfire.error("Failed to retrieve the patient's documents.", exc_info=True)
         raise

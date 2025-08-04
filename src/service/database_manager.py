@@ -1,11 +1,10 @@
-import logging
-
 import duckdb
+import logfire
 import streamlit as st
 
 from data import database
 
-log = logging.getLogger("TestLogger")
+logfire.configure()
 
 
 @st.cache_resource()
@@ -14,7 +13,7 @@ def get_db_connection() -> duckdb.DuckDBPyConnection:
 
 
 def initialize_database() -> None:
-    log.info("APP-LOGIC: Initializing database schema.")
+    logfire.info("APP-LOGIC: Initializing database schema.")
     connection = get_db_connection()
     database.initialize(connection)
-    log.info("APP-LOGIC: Database schema initialized successfully.")
+    logfire.info("APP-LOGIC: Database schema initialized successfully.")

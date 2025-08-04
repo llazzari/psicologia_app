@@ -1,18 +1,18 @@
-import logging
 from typing import Any
 
 import duckdb
+import logfire
 
 from data.db_utils import insert_model
 from data.models.psychologist_settings_models import PsychologistSettings
 
-log = logging.getLogger("TestLogger")
+logfire.configure()
 
 
 def create_psychologist_settings_table(connection: duckdb.DuckDBPyConnection) -> None:
     """Creates the 'psychologist_settings' table with the expanded schema."""
     try:
-        log.info(
+        logfire.info(
             "APP-LOGIC: Attempting to create 'psychologist_settings' table with new schema."
         )
         sql_command = """
@@ -27,9 +27,11 @@ def create_psychologist_settings_table(connection: duckdb.DuckDBPyConnection) ->
         );
         """
         connection.execute(sql_command)
-        log.info("APP-LOGIC: 'psychologist_settings' table created or already exists.")
+        logfire.info(
+            "APP-LOGIC: 'psychologist_settings' table created or already exists."
+        )
     except Exception:
-        log.error(
+        logfire.error(
             "APP-LOGIC: Failed to create 'psychologist_settings' table.", exc_info=True
         )
         raise
@@ -44,11 +46,11 @@ def insert(
             "psychologist_settings",
             psychologist_settings.model_dump(),
         )
-        log.info(
+        logfire.info(
             f"Inserted psychologist settings for {psychologist_settings.user_email}"
         )
     except Exception:
-        log.error(
+        logfire.error(
             f"Failed to insert psychologist settings for {psychologist_settings.user_email}",
             exc_info=True,
         )
@@ -66,22 +68,24 @@ def get_by_email(
     connection: duckdb.DuckDBPyConnection, email: str
 ) -> PsychologistSettings:
     try:
-        log.info(
+        logfire.info(
             f"APP-LOGIC: Attempting to retrieve psychologist settings for email {email}."
         )
         row = _fetch_psychologist_settings_row(connection, email)
         if row is None:
-            log.warning(f"APP-LOGIC: No psychologist settings found for email {email}.")
+            logfire.warning(
+                f"APP-LOGIC: No psychologist settings found for email {email}."
+            )
             raise ValueError(f"No psychologist settings found for email {email}.")
         psychologist_settings = PsychologistSettings(
             **{k: v for k, v in zip(PsychologistSettings.model_fields.keys(), row)}  # type: ignore
         )
-        log.info(
+        logfire.info(
             f"APP-LOGIC: Successfully retrieved psychologist settings for email {email}."
         )
         return psychologist_settings
     except Exception:
-        log.error(
+        logfire.error(
             f"APP-LOGIC: Failed to retrieve psychologist settings for email {email}.",
             exc_info=True,
         )
